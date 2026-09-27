@@ -1,6 +1,10 @@
 use crate::ecs::world::{EngineWorld, TransformComponent, PhysicsComponent};
-use rust_core::net::MeshNode;
 use serde::{Deserialize, Serialize};
+
+pub trait MeshNode: Send + Sync {
+    fn broadcast(&self, data: &[u8]);
+}
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EntityStateUpdate {
