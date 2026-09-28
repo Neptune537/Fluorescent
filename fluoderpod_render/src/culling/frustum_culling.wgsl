@@ -32,8 +32,6 @@ struct DrawIndexedIndirectArgs {
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let instance_index = global_id.x;
 
-    // We don't have total_instances easily available here without an extra uniform/push constant.
-    // However, if we assume the thread dispatch exactly matches, we can guard it by arrayLength.
     if (instance_index >= arrayLength(&instances)) {
         return;
     }
