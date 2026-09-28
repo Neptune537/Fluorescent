@@ -24,14 +24,23 @@ struct ClusterMetadataBuffer {
     clusters: array<ClusterHeader>,
 }
 
-struct OutputClustersBuffer {
-    count: atomic<u32>,
-    cluster_ids: array<u32>,
+struct DrawIndexedIndirectArgs {
+    index_count: u32,
+    instance_count: atomic<u32>,
+    first_index: u32,
+    base_vertex: i32,
+    first_instance: u32,
+};
+
+struct OutputDrawArgsBuffer {
+    args: array<DrawIndexedIndirectArgs>,
 }
 
 @group(0) @binding(0) var<uniform> camera: CameraUniform;
 @group(0) @binding(1) var<storage, read> metadata_buffer: ClusterMetadataBuffer;
-@group(0) @binding(2) var<storage, read_write> output_buffer: OutputClustersBuffer;
+// Actually output indirect draw calls instead of a compact list of cluster ids
+@group(0) @binding(2) var<storage, read_write> draw_args_buffer: OutputDrawArgsBuffer;
+@group(0) @binding(3) var<storage, read_write> draw_count: atomic<u32>;
 
 fn get_screen_space_error(cluster_error: f32, center: vec3<f32>, radius: f32) -> f32 {
     let dist = length(center - camera.position);
@@ -65,7 +74,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // The root node has parent_lod_error = infinity (or a very large number), so it will always pass the parent condition.
     // If the cluster error is within the threshold, but the parent's error is too large, we select this cluster.
     if cluster_sse <= threshold && parent_sse > threshold {
-        let output_idx = atomicAdd(&output_buffer.count, 1u);
-        output_buffer.cluster_ids[output_idx] = cluster.cluster_id;
+        // Output an indirect draw call
+        let output_idx = atomicAdd(&draw_count, 1u);
+        draw_args_buffer.args[output_idx].index_count = cluster.index_count;
+        atomicStore(&draw_args_buffer.args[output_idx].instance_count, 1u);
+        draw_args_buffer.args[output_idx].first_index = cluster.index_offset;
+        draw_args_buffer.args[output_idx].base_vertex = i32(cluster.vertex_offset);
+        draw_args_buffer.args[output_idx].first_instance = cluster.cluster_id;
     }
 }
