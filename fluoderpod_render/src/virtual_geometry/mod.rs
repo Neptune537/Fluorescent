@@ -114,6 +114,16 @@ impl VirtualGeometrySystem {
             label: Some("Virtual Geometry Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
@@ -124,10 +134,30 @@ impl VirtualGeometrySystem {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -173,6 +203,7 @@ impl VirtualGeometrySystem {
         camera_buffer: &wgpu::Buffer,
         metadata_buffer: &wgpu::Buffer,
         output_buffer: &wgpu::Buffer,
+        draw_count_buffer: &wgpu::Buffer,
         num_clusters: u32,
         device: &wgpu::Device,
     ) {
@@ -191,6 +222,10 @@ impl VirtualGeometrySystem {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: output_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: draw_count_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -258,3 +293,4 @@ impl ClusterStreamer {
         }
     }
 }
+pub mod mesh_loader;

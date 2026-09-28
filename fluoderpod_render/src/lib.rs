@@ -23,6 +23,7 @@ pub struct FluoderpodRenderer {
     pub compact_instances_buffer: Option<wgpu::Buffer>,
     pub cluster_metadata_buffer: Option<wgpu::Buffer>,
     pub output_clusters_buffer: Option<wgpu::Buffer>,
+    pub draw_count_buffer: Option<wgpu::Buffer>,
     pub hzb_texture: Option<wgpu::TextureView>,
     pub hzb_sampler: Option<wgpu::Sampler>,
 
@@ -44,6 +45,7 @@ impl FluoderpodRenderer {
             compact_instances_buffer: None,
             cluster_metadata_buffer: None,
             output_clusters_buffer: None,
+            draw_count_buffer: None,
             hzb_texture: None,
             hzb_sampler: None,
             num_instances: 0,
@@ -54,6 +56,10 @@ impl FluoderpodRenderer {
 
     /// Ingests a raw contiguous buffer of 48-byte PackedEntityInstance structs directly from FFI.
     /// This bypasses CPU-side iteration and prepares the data for compute culling.
+    pub fn push_render_command(&mut self, cmd: unified_pipeline::RenderCommand) {
+        let _ = self.pipeline_manager.render_command_tx.send(cmd);
+    }
+
     pub fn ingest_fluoderpod_batch(&mut self, raw_entity_data: &[u8]) -> Result<usize, &'static str> {
         if raw_entity_data.len() % std::mem::size_of::<unified_pipeline::PackedEntityInstance>() != 0 {
             return Err("Entity buffer byte length is not a multiple of 48 bytes");
@@ -81,6 +87,8 @@ impl FluoderpodRenderer {
 
     /// Executes the full GPU-driven frame: Culling -> Virtual Geometry LOD -> Indirect Draw
     pub fn execute_frame<'a>(&'a mut self, encoder: &mut wgpu::CommandEncoder, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.pipeline_manager.flush_staging_to_gpu();
+
         // 1. Dispatch Frustum & Occlusion Culling
         if let (Some(culler), Some(camera_buf), Some(instances_buf), Some(indirect_buf), Some(compact_buf), Some(hzb_tex), Some(hzb_samp)) = (
             &self.culling_system,
@@ -120,17 +128,19 @@ impl FluoderpodRenderer {
         }
 
         // 2. Dispatch Virtual Geometry Cluster Selection
-        if let (Some(vg_system), Some(camera_buf), Some(metadata_buf), Some(output_buf)) = (
+        if let (Some(vg_system), Some(camera_buf), Some(metadata_buf), Some(output_buf), Some(draw_count_buf)) = (
             &self.virtual_geometry_system,
             &self.camera_uniform_buffer,
             &self.cluster_metadata_buffer,
-            &self.output_clusters_buffer
+            &self.output_clusters_buffer,
+            &self.draw_count_buffer
         ) {
             vg_system.dispatch_cluster_evaluation(
                 encoder,
                 camera_buf,
                 metadata_buf,
                 output_buf,
+                draw_count_buf,
                 self.num_clusters,
                 &self.pipeline_manager.device
             );

@@ -84,11 +84,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 min_xy = min(min_xy, ndc.xy);
                 max_xy = max(max_xy, ndc.xy);
 
-                // For Reverse-Z, min depth is actually the closest point to camera in terms of values?
-                // Wait. In Reverse-Z, z=1 is near plane, z=0 is far plane.
-                // An object is bounded by its max depth value (closest point to camera)
-                // in reverse Z, or bounded by min depth?
-                // "culls if object_min_depth < hzb_depth" - user spec.
                 if (i == 0u || ndc.z < min_z) {
                     min_z = ndc.z; // Track the minimum Z value across vertices
                 }
@@ -112,12 +107,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 mip = ceil(log2(max_dim));
             }
 
-            // Sample HZB at the chosen mip level. We do a 4 tap to be safe,
-            // but standard HZB can just do 1 tap if the footprint aligns or 4 taps.
             let tex_dim = vec2<f32>(textureDimensions(hzb_tex, i32(mip)));
             let sample_uv = (rect_min + rect_max) * 0.5;
-            // Actually, properly it's 4 taps for AABB covering 2x2 texels at that mip:
-            // But simple version first:
             let hzb_depth = textureSampleLevel(hzb_tex, hzb_sampler, sample_uv, mip).r;
 
             // object_min_depth < hzb_depth implies occluded in Reverse-Z
