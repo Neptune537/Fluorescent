@@ -1,4 +1,4 @@
-# tests/run_e2e_tests.ps1
+﻿# tests/run_e2e_tests.ps1
 #
 # Automated single-command runner for Fluorite AAA Engine Phase 1 E2E Test Suite.
 # Usage: powershell -ExecutionPolicy Bypass -File .\tests\run_e2e_tests.ps1
@@ -26,10 +26,10 @@ if ($DartCmd) {
     try {
         & dart run tests/e2e_runner.dart
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✔ Dart E2E Suite passed (112/112 tests)." -ForegroundColor Green
+            Write-Host "[PASS] Dart E2E Suite passed (112/112 tests)." -ForegroundColor Green
             $PassedSuites++
         } else {
-            Write-Host "✘ Dart E2E Suite failed with exit code $LASTEXITCODE." -ForegroundColor Red
+            Write-Host "[FAIL] Dart E2E Suite failed with exit code $LASTEXITCODE." -ForegroundColor Red
             $FailedSuites++
         }
     } finally {
@@ -43,10 +43,10 @@ if ($DartCmd) {
         try {
             & flutter test tests/e2e_runner.dart
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "✔ Flutter test runner passed." -ForegroundColor Green
+                Write-Host "[PASS] Flutter test runner passed." -ForegroundColor Green
                 $PassedSuites++
             } else {
-                Write-Host "✘ Flutter test runner failed." -ForegroundColor Red
+                Write-Host "[FAIL] Flutter test runner failed." -ForegroundColor Red
                 $FailedSuites++
             }
         } finally {
@@ -67,10 +67,10 @@ if ($CargoCmd) {
     try {
         & cargo test --manifest-path tests/Cargo.toml
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✔ Cargo E2E test suite passed." -ForegroundColor Green
+            Write-Host "[PASS] Cargo E2E test suite passed." -ForegroundColor Green
             $PassedSuites++
         } else {
-            Write-Host "✘ Cargo E2E test suite failed with exit code $LASTEXITCODE." -ForegroundColor Red
+            Write-Host "[FAIL] Cargo E2E test suite failed with exit code $LASTEXITCODE." -ForegroundColor Red
             $FailedSuites++
         }
     } finally {
