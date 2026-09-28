@@ -4,33 +4,15 @@ use std::sync::Arc;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct PackedEntityInstance {
-
     pub position: [f32; 3],          // 12 bytes (Sphere center)
     pub sphere_radius: f32,          // 4 bytes  (Culling radius)
     pub rotation_quat: [f32; 4],     // 16 bytes (Orientation)
     pub scale: [f32; 3],             // 12 bytes (Non-uniform scale)
     pub cluster_and_flags: u32,      // 4 bytes  (24-bit cluster_id | 8-bit flags)
-
-
-    pub position: [f32; 3],      // 12 bytes
-    pub sphere_radius: f32,      // 4 bytes
-    pub rotation_quat: [f32; 4], // 16 bytes
-    pub scale: [f32; 3],         // 12 bytes
-    pub cluster_and_flags: u32,  // 4 bytes
-
-
-
 }
 
 // Compile-time assertion to guarantee the exact 48-byte memory layout
 const _: () = assert!(std::mem::size_of::<PackedEntityInstance>() == 48);
-
-
-
-/// Type alias for backward compatibility.
-pub type EntityInstance = PackedEntityInstance;
-
-
 
 /// Type alias for backward compatibility.
 pub type EntityInstance = PackedEntityInstance;
@@ -45,6 +27,21 @@ pub struct PipelineManager {
 }
 
 impl PipelineManager {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub unsafe fn init_from_openxr_vulkan(
+        vk_instance: ash::Instance,
+        vk_physical_device: ash::vk::PhysicalDevice,
+        vk_device: ash::Device,
+        queue_family_index: u32,
+        queue_index: u32,
+    ) -> Result<Self, &'static str> {
+        // NOTE: In WGPU 0.20, building a wgpu::Device directly from a wgpu_hal::Device requires
+        // wrapping it in a wgpu_core::device::Device and then a wgpu::Device.
+        // (This is highly specific to your WGPU version's `wgpu::Device::from_core` macro/methods).
+        let _ = (vk_instance, vk_physical_device, vk_device, queue_family_index, queue_index);
+        unimplemented!("WGPU Core registration requires exact crate visibility setup, but the hal instances are ready");
+    }
+
     pub fn new(
         device: Arc<wgpu::Device>,
         queue: Arc<wgpu::Queue>,
