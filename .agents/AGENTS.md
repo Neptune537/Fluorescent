@@ -53,3 +53,9 @@ When writing network code or connecting external UIs to the Nexus network, note 
   * `{"type": "TensorDiff", "diff_buffer": "...", "node_id": "..."}`
   * `{"type": "Ping"}`
 * **Network Behavior**: The Execution Rail receives commands from nodes and responds with ACKs (`{"status": "ok", "received": true}`). Clients (like web UIs) must proactively broadcast their own state changes using `Telemetry` messages.
+
+### Reticulum Bridge (Native Mesh Networking)
+To bypass traditional WebSockets for mesh networking and offline-first capabilities, the Nexus Protocol is also integrated directly into the `fluoderpod_render` decoupled core via the **Reticulum Bridge**.
+* **Location**: `fluoderpod_render/src/reticulum_bridge.rs`
+* **Behavior**: Uses the `reticulum` crate to serialize and broadcast `NexusMessage` structs to a Reticulum mesh.
+* **Scanning & Receiving**: Agents or loops operating the renderer can non-blockingly scan for incoming mesh messages using `reticulum_bridge.try_recv_message()`. This capability maps directly into the engine's tick loop for applying remote `TensorDiff` packets or external telemetry without CPU/Flutter blocking.

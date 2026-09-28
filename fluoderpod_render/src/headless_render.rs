@@ -1,3 +1,4 @@
+#[cfg(not(target_arch = "wasm32"))]
 use ash::vk;
 
 pub struct HeadlessRenderTarget {
@@ -12,6 +13,7 @@ impl HeadlessRenderTarget {
         // we can't easily turn a raw `VkImage` back into a `wgpu::Texture` natively
         // without custom wgpu-core logic, but we show the intended allocation strategy.
 
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             let _ = device.as_hal::<wgpu_hal::api::Vulkan, _, _>(|device| {
                 if let Some(vk_device) = device {

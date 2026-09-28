@@ -1,8 +1,11 @@
 pub mod culling;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod nexus_client;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod reticulum_bridge;
 pub mod unified_pipeline;
 pub mod virtual_geometry;
+pub mod thermal;
 
 /// The main entry point for the fluoderpod GPU-driven render graph.
 pub struct FluoderpodRenderer {
@@ -10,6 +13,8 @@ pub struct FluoderpodRenderer {
     pub pipeline_manager: unified_pipeline::PipelineManager,
     // Add systems to manage dispatch
     pub culling_system: Option<culling::ComputeCuller>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub reticulum_bridge: Option<std::sync::Arc<reticulum_bridge::ReticulumBridge>>,
     pub virtual_geometry_system: Option<virtual_geometry::VirtualGeometrySystem>,
 
     // Buffers needed for passes
@@ -23,6 +28,7 @@ pub struct FluoderpodRenderer {
 
     pub num_instances: u32,
     pub num_clusters: u32,
+    pub thermal_scaler: thermal::ThermalScaler,
 }
 
 impl FluoderpodRenderer {
@@ -30,6 +36,8 @@ impl FluoderpodRenderer {
         Self {
             pipeline_manager,
             culling_system: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            reticulum_bridge: None,
             virtual_geometry_system: None,
             camera_uniform_buffer: None,
             instances_buffer: None,
@@ -40,6 +48,7 @@ impl FluoderpodRenderer {
             hzb_sampler: None,
             num_instances: 0,
             num_clusters: 0,
+            thermal_scaler: thermal::ThermalScaler::new(),
         }
     }
 
@@ -56,6 +65,13 @@ impl FluoderpodRenderer {
 
         let instance_count = _instances.len();
         self.num_instances = instance_count as u32;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(bridge) = &self.reticulum_bridge {
+            bridge.send_nexus_message(reticulum_bridge::NexusMessage::Telemetry {
+                payload: format!("Batch update with {} instances", instance_count)
+            });
+        }
 
         // High-throughput upload to GPU buffers handled by the unified pipeline
         self.pipeline_manager.update_entity_buffer(raw_entity_data);
@@ -122,6 +138,14 @@ impl FluoderpodRenderer {
 
         // 3. Issue Unified Indirect Draw commands
         self.pipeline_manager.submit_indirect_draws(render_pass);
+
+        // 4. Adaptive Thermal Throttling
+        self.thermal_scaler.throttle();
+    }
+
+    /// Update the thermal scaler's activity state based on engine input (e.g. camera movement, entity updates)
+    pub fn set_scene_activity(&mut self, is_static: bool) {
+        self.thermal_scaler.update_state(is_static);
     }
 }
 #[cfg(target_os = "android")]
@@ -161,12 +185,23 @@ pub unsafe extern "C" fn fluoderpod_ingest_batch(
     }
 }
 
+/// FFI to inform the renderer if the scene is static
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_set_scene_activity(
+    renderer_ptr: *mut FluoderpodRenderer,
+    is_static: bool,
+) {
+    if !renderer_ptr.is_null() {
+        let renderer = &mut *renderer_ptr;
+        renderer.set_scene_activity(is_static);
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webrtc_signalling;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webrtc_streamer;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub mod headless_render;
 
 #[cfg(not(target_arch = "wasm32"))]

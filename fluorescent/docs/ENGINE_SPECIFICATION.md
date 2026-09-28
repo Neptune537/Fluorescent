@@ -663,3 +663,17 @@ Hardware detection, Dynamic quality tiers, Vulkan optimization, Desktop windowin
 4. **Unified Application/Game Runtime**: One platform for game + launcher + UI + social + inventory + marketplace + settings + editor tooling.
 5. **Data-Driven Architecture**: All game content described as data, enabling modding, hot-reloading, and eventual marketplace support.
 6. **Two Runtimes, One Project**: Creation Runtime (editor) and Game Runtime (player) share the same project and world representation.
+
+---
+
+## 18. Current Implementation Status (v0.2.0 Additions)
+
+Significant portions of the AAA sub-systems are now actively implemented:
+- **Rust Core 3D Geometry**: Advanced 3D rendering capabilities leveraging `gltf` 1.4 in `fluorite_core`, complete with 3D vertex and index buffers matching `pbr_forward.wgsl` pipelines. Features embedded Vulkan swapchain surfaces using timeline semaphores.
+- **AAA Subsystems**: 
+  - **Rendering**: Implemented RTGI, Sub-surface scattering, volumetric weather, and cascaded shadow maps.
+  - **Streaming**: Virtual texturing and asynchronous world streaming from NVMe.
+  - **Physics**: Euphoria-style bio-mechanical physics, vehicle suspension dynamics, and aerodynamic/hydrodynamic models.
+  - **AI & Animation**: Complex Living World routines, crowd density algorithms, line-of-sight systems, inverse kinematics (IK), and acoustic ray-tracing.
+- **Fluoropod Bridge**: Operational zero-copy interop providing lock-free SPSC telemetry streaming between the Rust simulation and the Flutter UI, guaranteed by a strict GC Firewall (`SanitizedUiState`) passing only POD types.
+- **Fluorescent UI Engine**: Completed Tactical HUD (Battle Visor, Holographic Radar), responsive multi-form factor layouts, in-game profiling tools, episodic narrative deck, and a comprehensive A11y subsystem.
