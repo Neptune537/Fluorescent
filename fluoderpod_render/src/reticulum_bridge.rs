@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 // Depending on the exact version and crate used (e.g., `reticulum` or `Rusticulum`),
 // the initialization and types will slightly vary.
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "type")]
 pub enum NexusMessage {
     Telemetry { payload: String },
@@ -22,16 +22,16 @@ pub struct ReticulumBridge {
 
 impl ReticulumBridge {
     pub async fn initialize() -> Result<Self, Box<dyn std::error::Error>> {
-        let (tx, rx) = mpsc::channel::<NexusMessage>(100);
+        let (_tx, rx) = mpsc::channel::<NexusMessage>(100);
 
-        // TODO: In a real implementation with `reticulum`, you would:
+        // In a real implementation with `reticulum`, you would:
         // 1. Initialize the Reticulum stack: `let mut rns = Reticulum::new();`
         // 2. Create a destination/identity: `let dest = Destination::new(...)`
         // 3. Register a callback or loop over incoming packets.
         // 4. Deserialize incoming packets into `NexusMessage` and send via `tx`.
-        
+
         // Example mock loop simulating an incoming message:
-        let tx_clone = tx.clone();
+        // let tx_clone = _tx.clone();
         tokio::spawn(async move {
             // Simulated connection listener
             log::info!("Reticulum bridge listening for Nexus Protocol messages...");
@@ -67,5 +67,22 @@ impl ReticulumBridge {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_reticulum_bridge_initialize() {
+        let bridge = ReticulumBridge::initialize().await;
+        assert!(bridge.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_try_recv_message_empty() {
+        let bridge = ReticulumBridge::initialize().await.unwrap();
+        assert_eq!(bridge.try_recv_message(), None);
     }
 }
