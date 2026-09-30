@@ -570,3 +570,32 @@ impl FlatBvh {
         broadphase::find_broadphase_pairs_dual(self, other, boxes_self, boxes_other)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use glam::Vec3A;
+
+    #[test]
+    fn test_bvh_node_creation() {
+        let aabb = Aabb::new(Vec3A::new(0.0, 0.0, 0.0), Vec3A::new(1.0, 1.0, 1.0));
+        let leaf = FlatBvhNode::leaf(0, 1, &aabb);
+        assert!(leaf.is_leaf());
+        assert_eq!(leaf.first_primitive(), 0);
+        assert_eq!(leaf.primitive_count(), 1);
+
+        let internal = FlatBvhNode::internal(2, &aabb);
+        assert!(!internal.is_leaf());
+        assert_eq!(internal.left_child(), 2);
+    }
+
+    #[test]
+    fn test_bvh_build() {
+        let boxes = vec![
+            Aabb::new(Vec3A::new(0.0, 0.0, 0.0), Vec3A::new(1.0, 1.0, 1.0)),
+            Aabb::new(Vec3A::new(2.0, 2.0, 2.0), Vec3A::new(3.0, 3.0, 3.0)),
+        ];
+        let bvh = FlatBvh::build(&boxes);
+        assert!(!bvh.is_empty());
+    }
+}

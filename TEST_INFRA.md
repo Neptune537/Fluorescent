@@ -324,3 +324,8 @@ cargo test --manifest-path tests/Cargo.toml
 # Or inside fluorite_core:
 cargo test --manifest-path fluorite_core/Cargo.toml
 ```
+
+## Unit Test Coverage Strategy (Update)
+While Phase 1 and Phase 2 E2E tests provide extensive integration and opaque-box testing, inline unit tests are being progressively added across the core Rust codebase (`fluorite_core`).
+- Tests are currently enforced on foundational subsystems such as `fluorite_core/src/spatial/*` (e.g., AABB math, Ray intersection, BVH tree construction).
+- Future test expansions will focus on maintaining inline unit verification alongside cross-feature (Tier 3) validation.
