@@ -279,3 +279,8 @@ TEST SUMMARY:
 ================================================================================
 OVERALL RESULT: ALL 112 TESTS PASSED SUCCESSFULLY (100%)
 ```
+
+## 7. Additional Unit Testing Expansion (Post-Wave 1)
+Following the initial Wave 1 Phase 2 execution, a comprehensive audit of missing unit tests in `fluorite_core` was performed.
+- Over 100 internal functions without unit test coverage were identified.
+- Inline unit tests (`#[cfg(test)]`) were successfully introduced for foundational components including **Spatial Math primitives (`math.rs`)** (AABB, Rays) and **BVH spatial partitioning (`bvh.rs`)** to enforce regression-free operations at the unit level before reaching E2E integration boundaries.
