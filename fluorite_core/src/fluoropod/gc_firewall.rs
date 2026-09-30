@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 /// Contains ONLY display-ready aggregates (e.g. ammo counts, compass heading, speed in km/h),
 /// with no scene graphs, meshes, or entity pointers.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
 pub struct SanitizedUiState {
     pub compass_heading_degrees: f32,
     pub speed_kmh: f32,
@@ -26,7 +28,6 @@ pub struct SanitizedUiState {
     pub target_lead_y: f32,
     pub active_quest_distance: f32,
 }
-
 
 impl Default for SanitizedUiState {
     fn default() -> Self {
@@ -92,7 +93,6 @@ impl GcFirewall {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_gc_firewall_sanitization() {
         let state = GcFirewall::sanitize(
-            [0.0, 0.0, 1.0], // Facing forward (North)
+            [0.0, 0.0, 1.0],  // Facing forward (North)
             [10.0, 0.0, 0.0], // 10 m/s = 36 km/h
             [0.0, 15.0, 0.0],
             30,

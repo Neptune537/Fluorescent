@@ -1,6 +1,6 @@
 //! Analytical Two-Bone IK and Iterative FABRIK Solvers.
 
-use glam::{Quat, Vec3};
+use glam::Vec3;
 
 /// Joint representation in an inverse kinematics chain.
 #[derive(Debug, Clone)]
@@ -46,7 +46,7 @@ pub fn solve_two_bone_ik(
     let b = lower_length;
     let c = target_dist.max((a - b).abs() + 1e-4);
 
-    let cos_alpha = ((b * b + c * c - a * a) / (2.0 * b * c)).clamp(-1.0, 1.0);
+    let _cos_alpha = ((b * b + c * c - a * a) / (2.0 * b * c)).clamp(-1.0, 1.0);
     let cos_beta = ((a * a + c * c - b * b) / (2.0 * a * c)).clamp(-1.0, 1.0);
     let angle_beta = cos_beta.acos();
 
@@ -57,7 +57,8 @@ pub fn solve_two_bone_ik(
     let mid_plane_dir = bend_normal.cross(target_dir).normalize_or_zero();
 
     // Rotate upper segment toward pole
-    let mid_pos = root_pos + target_dir * (a * angle_beta.cos()) + mid_plane_dir * (a * angle_beta.sin());
+    let mid_pos =
+        root_pos + target_dir * (a * angle_beta.cos()) + mid_plane_dir * (a * angle_beta.sin());
 
     TwoBoneIkResult {
         mid_joint_pos: mid_pos,

@@ -2,7 +2,7 @@
 //!
 //! Models high-density urban pedestrian movement, dynamic flow vectors, and obstacle repulsion.
 
-use glam::{Vec2, Vec3};
+use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
 /// 2D Flow Field Cell holding velocity vectors and density potential.

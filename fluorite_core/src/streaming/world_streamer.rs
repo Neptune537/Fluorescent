@@ -4,7 +4,7 @@
 //! dynamically prioritizing I/O transfers based on player velocity and view frustum.
 
 use crate::spatial::Frustum;
-use glam::{Vec2, Vec3};
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
@@ -65,8 +65,8 @@ pub struct StreamingChunk {
 /// Configuration for open-world streaming.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamingConfig {
-    pub chunk_size_meters: f32, // e.g. 256.0 meters
-    pub load_radius_chunks: i32, // e.g. 12 chunks (3072 meters)
+    pub chunk_size_meters: f32,       // e.g. 256.0 meters
+    pub load_radius_chunks: i32,      // e.g. 12 chunks (3072 meters)
     pub max_vram_budget_bytes: usize, // e.g. 8 GB
     pub max_concurrent_io_requests: usize,
     pub target_bandwidth_gbps: f32, // e.g. 5.5 GB/s (PCIe 4.0/5.0 NVMe DirectStorage)
@@ -105,12 +105,7 @@ impl WorldStreamingManager {
     }
 
     /// Updates chunk residency, priorities, and triggers asynchronous NVMe load/evict jobs.
-    pub fn update(
-        &mut self,
-        camera_pos: Vec3,
-        camera_velocity: Vec3,
-        _frustum: Option<&Frustum>,
-    ) {
+    pub fn update(&mut self, camera_pos: Vec3, camera_velocity: Vec3, _frustum: Option<&Frustum>) {
         let center_chunk = ChunkCoord::from_world_pos(camera_pos, self.config.chunk_size_meters);
         let radius = self.config.load_radius_chunks;
 
@@ -146,7 +141,9 @@ impl WorldStreamingManager {
         }
 
         // Process I/O transfers up to concurrency limit
-        while self.current_io_transfers < self.config.max_concurrent_io_requests && !self.io_queue.is_empty() {
+        while self.current_io_transfers < self.config.max_concurrent_io_requests
+            && !self.io_queue.is_empty()
+        {
             if let Some(coord) = self.io_queue.pop_front() {
                 if let Some(chunk) = self.chunks.get_mut(&coord) {
                     chunk.state = ChunkState::Resident;
@@ -166,14 +163,16 @@ impl WorldStreamingManager {
                 .collect();
 
             // Sort by descending distance (farthest first)
-            resident_coords.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            resident_coords
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             for (evict_coord, _) in resident_coords {
                 if self.total_resident_bytes <= self.config.max_vram_budget_bytes {
                     break;
                 }
                 if let Some(chunk) = self.chunks.get_mut(&evict_coord) {
-                    self.total_resident_bytes = self.total_resident_bytes.saturating_sub(chunk.asset_bytes);
+                    self.total_resident_bytes =
+                        self.total_resident_bytes.saturating_sub(chunk.asset_bytes);
                     chunk.state = ChunkState::Unloaded;
                 }
             }
@@ -184,7 +183,10 @@ impl WorldStreamingManager {
     }
 
     pub fn resident_chunk_count(&self) -> usize {
-        self.chunks.values().filter(|c| c.state == ChunkState::Resident).count()
+        self.chunks
+            .values()
+            .filter(|c| c.state == ChunkState::Resident)
+            .count()
     }
 
     pub fn resident_memory_mb(&self) -> f32 {

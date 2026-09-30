@@ -6,7 +6,7 @@
 use crate::rendering::pbr::PbrMaterialUniforms;
 use crate::spatial::Aabb;
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec3, Vec4};
+use glam::Vec3;
 
 /// Standard 3D PBR Vertex structure matching GPU layout:
 /// - `@location(0) position: vec3<f32>` (12 bytes)
@@ -27,7 +27,12 @@ pub struct Vertex3D {
 const _: () = assert!(std::mem::size_of::<Vertex3D>() == 48);
 
 impl Vertex3D {
-    pub const fn new(position: [f32; 3], normal: [f32; 3], tangent: [f32; 4], uv: [f32; 2]) -> Self {
+    pub const fn new(
+        position: [f32; 3],
+        normal: [f32; 3],
+        tangent: [f32; 4],
+        uv: [f32; 2],
+    ) -> Self {
         Self {
             position,
             normal,
@@ -48,7 +53,12 @@ pub struct SubMesh {
 }
 
 impl SubMesh {
-    pub fn new(name: impl Into<String>, vertices: Vec<Vertex3D>, indices: Vec<u32>, material: PbrMaterialUniforms) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        vertices: Vec<Vertex3D>,
+        indices: Vec<u32>,
+        material: PbrMaterialUniforms,
+    ) -> Self {
         let mut min = glam::Vec3A::splat(f32::INFINITY);
         let mut max = glam::Vec3A::splat(f32::NEG_INFINITY);
 
@@ -110,7 +120,6 @@ impl Model3D {
             Aabb::new(min, max)
         };
 
-
         Self {
             name: name.into(),
             submeshes,
@@ -137,7 +146,8 @@ pub struct GltfMeshLoader;
 impl GltfMeshLoader {
     /// Loads a glTF or GLB binary directly from an in-memory slice.
     pub fn load_from_slice(slice: &[u8]) -> Result<Model3D, String> {
-        let (gltf, buffers, _images) = gltf::import_slice(slice).map_err(|e| format!("glTF parse error: {e}"))?;
+        let (gltf, buffers, _images) =
+            gltf::import_slice(slice).map_err(|e| format!("glTF parse error: {e}"))?;
 
         let mut submeshes = Vec::new();
 
@@ -217,16 +227,24 @@ impl GltfMeshLoader {
                     material_uniforms.flags |= crate::rendering::pbr::MATERIAL_FLAG_HAS_NORMAL_MAP;
                 }
                 if pbr.metallic_roughness_texture().is_some() {
-                    material_uniforms.flags |= crate::rendering::pbr::MATERIAL_FLAG_HAS_METALLIC_ROUGHNESS_MAP;
+                    material_uniforms.flags |=
+                        crate::rendering::pbr::MATERIAL_FLAG_HAS_METALLIC_ROUGHNESS_MAP;
                 }
                 if mat.occlusion_texture().is_some() {
-                    material_uniforms.flags |= crate::rendering::pbr::MATERIAL_FLAG_HAS_OCCLUSION_MAP;
+                    material_uniforms.flags |=
+                        crate::rendering::pbr::MATERIAL_FLAG_HAS_OCCLUSION_MAP;
                 }
                 if mat.emissive_texture().is_some() {
-                    material_uniforms.flags |= crate::rendering::pbr::MATERIAL_FLAG_HAS_EMISSIVE_MAP;
+                    material_uniforms.flags |=
+                        crate::rendering::pbr::MATERIAL_FLAG_HAS_EMISSIVE_MAP;
                 }
 
-                submeshes.push(SubMesh::new(mesh_name.clone(), vertices, indices, material_uniforms));
+                submeshes.push(SubMesh::new(
+                    mesh_name.clone(),
+                    vertices,
+                    indices,
+                    material_uniforms,
+                ));
             }
         }
 
@@ -283,7 +301,12 @@ impl GltfMeshLoader {
             }
         }
 
-        SubMesh::new("ProceduralSphere", vertices, indices, PbrMaterialUniforms::default())
+        SubMesh::new(
+            "ProceduralSphere",
+            vertices,
+            indices,
+            PbrMaterialUniforms::default(),
+        )
     }
 
     /// Generates a procedural 3D box/cube mesh with distinct face normals and UVs.
@@ -291,17 +314,35 @@ impl GltfMeshLoader {
         let h = half_extents;
         let positions: [[f32; 3]; 24] = [
             // Front face (+Z)
-            [-h.x, -h.y,  h.z], [ h.x, -h.y,  h.z], [ h.x,  h.y,  h.z], [-h.x,  h.y,  h.z],
+            [-h.x, -h.y, h.z],
+            [h.x, -h.y, h.z],
+            [h.x, h.y, h.z],
+            [-h.x, h.y, h.z],
             // Back face (-Z)
-            [ h.x, -h.y, -h.z], [-h.x, -h.y, -h.z], [-h.x,  h.y, -h.z], [ h.x,  h.y, -h.z],
+            [h.x, -h.y, -h.z],
+            [-h.x, -h.y, -h.z],
+            [-h.x, h.y, -h.z],
+            [h.x, h.y, -h.z],
             // Top face (+Y)
-            [-h.x,  h.y,  h.z], [ h.x,  h.y,  h.z], [ h.x,  h.y, -h.z], [-h.x,  h.y, -h.z],
+            [-h.x, h.y, h.z],
+            [h.x, h.y, h.z],
+            [h.x, h.y, -h.z],
+            [-h.x, h.y, -h.z],
             // Bottom face (-Y)
-            [-h.x, -h.y, -h.z], [ h.x, -h.y, -h.z], [ h.x, -h.y,  h.z], [-h.x, -h.y,  h.z],
+            [-h.x, -h.y, -h.z],
+            [h.x, -h.y, -h.z],
+            [h.x, -h.y, h.z],
+            [-h.x, -h.y, h.z],
             // Right face (+X)
-            [ h.x, -h.y,  h.z], [ h.x, -h.y, -h.z], [ h.x,  h.y, -h.z], [ h.x,  h.y,  h.z],
+            [h.x, -h.y, h.z],
+            [h.x, -h.y, -h.z],
+            [h.x, h.y, -h.z],
+            [h.x, h.y, h.z],
             // Left face (-X)
-            [-h.x, -h.y, -h.z], [-h.x, -h.y,  h.z], [-h.x,  h.y,  h.z], [-h.x,  h.y, -h.z],
+            [-h.x, -h.y, -h.z],
+            [-h.x, -h.y, h.z],
+            [-h.x, h.y, h.z],
+            [-h.x, h.y, -h.z],
         ];
 
         let normals: [[f32; 3]; 6] = [
@@ -320,7 +361,12 @@ impl GltfMeshLoader {
             let uv_coords = [[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]];
             for vertex_in_face in 0..4 {
                 let idx = face * 4 + vertex_in_face;
-                vertices.push(Vertex3D::new(positions[idx], n, t, uv_coords[vertex_in_face]));
+                vertices.push(Vertex3D::new(
+                    positions[idx],
+                    n,
+                    t,
+                    uv_coords[vertex_in_face],
+                ));
             }
         }
 
@@ -330,7 +376,12 @@ impl GltfMeshLoader {
             indices.extend_from_slice(&[base, base + 1, base + 2, base, base + 2, base + 3]);
         }
 
-        SubMesh::new("ProceduralBox", vertices, indices, PbrMaterialUniforms::default())
+        SubMesh::new(
+            "ProceduralBox",
+            vertices,
+            indices,
+            PbrMaterialUniforms::default(),
+        )
     }
 }
 
@@ -349,9 +400,11 @@ mod tests {
         assert_eq!(box_mesh.vertex_count(), 24);
         assert_eq!(box_mesh.index_count(), 36);
         assert_eq!(box_mesh.triangle_count(), 12);
-        assert_eq!(box_mesh.bounding_box.min, glam::Vec3A::new(-1.0, -1.0, -1.0));
+        assert_eq!(
+            box_mesh.bounding_box.min,
+            glam::Vec3A::new(-1.0, -1.0, -1.0)
+        );
         assert_eq!(box_mesh.bounding_box.max, glam::Vec3A::new(1.0, 1.0, 1.0));
-
     }
 
     #[test]

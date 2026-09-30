@@ -8,10 +8,19 @@ use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum KeyCode {
-    KeyW, KeyA, KeyS, KeyD,
-    KeySpace, KeyShift, KeyCtrl,
-    KeyE, KeyR, KeyF, KeyQ,
-    KeyEsc, KeyTab,
+    KeyW,
+    KeyA,
+    KeyS,
+    KeyD,
+    KeySpace,
+    KeyShift,
+    KeyCtrl,
+    KeyE,
+    KeyR,
+    KeyF,
+    KeyQ,
+    KeyEsc,
+    KeyTab,
     Unknown(u32),
 }
 
@@ -47,14 +56,29 @@ impl Default for GamepadState {
 pub enum InputEventType {
     KeyDown(KeyCode),
     KeyUp(KeyCode),
-    MouseMove { delta_x: f32, delta_y: f32 },
+    MouseMove {
+        delta_x: f32,
+        delta_y: f32,
+    },
     MouseDown(MouseButton),
     MouseUp(MouseButton),
-    MouseWheel { scroll_y: f32 },
+    MouseWheel {
+        scroll_y: f32,
+    },
     GamepadUpdate(GamepadState),
-    TouchDown { pointer_id: u32, pos_x: f32, pos_y: f32 },
-    TouchMove { pointer_id: u32, pos_x: f32, pos_y: f32 },
-    TouchUp { pointer_id: u32 },
+    TouchDown {
+        pointer_id: u32,
+        pos_x: f32,
+        pos_y: f32,
+    },
+    TouchMove {
+        pointer_id: u32,
+        pos_x: f32,
+        pos_y: f32,
+    },
+    TouchUp {
+        pointer_id: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +130,13 @@ mod tests {
     fn test_input_queue() {
         let mut queue = InputCommandQueue::new();
         queue.push_event(InputEventType::KeyDown(KeyCode::KeyW), 1000);
-        queue.push_event(InputEventType::MouseMove { delta_x: 2.5, delta_y: -1.0 }, 1005);
+        queue.push_event(
+            InputEventType::MouseMove {
+                delta_x: 2.5,
+                delta_y: -1.0,
+            },
+            1005,
+        );
 
         assert_eq!(queue.pending_count(), 2);
         let drained = queue.drain_tick_events();

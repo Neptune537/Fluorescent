@@ -7,7 +7,6 @@ pub struct HeadlessRenderTarget {
 
 impl HeadlessRenderTarget {
     pub fn new(_instance: &wgpu::Instance, device: &wgpu::Device, width: u32, height: u32) -> Self {
-
         // This is a minimal outline to demonstrate dropping into the HAL layer and creating
         // external memory in Vulkan. Since `wgpu-hal`'s inner types are mostly private,
         // we can't easily turn a raw `VkImage` back into a `wgpu::Texture` natively
@@ -30,7 +29,11 @@ impl HeadlessRenderTarget {
         }
 
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-        let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
 
         let desc = wgpu::TextureDescriptor {
             label: Some("Headless Shared Texture"),
@@ -45,6 +48,8 @@ impl HeadlessRenderTarget {
 
         let texture = device.create_texture(&desc);
 
-        Self { texture: Some(texture) }
+        Self {
+            texture: Some(texture),
+        }
     }
 }

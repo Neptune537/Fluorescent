@@ -1,6 +1,6 @@
 use crate::physics::sync::sync_body_transform_to_mat4;
 use crate::physics::world::PhysicsWorld;
-use hecs::{Entity, World as HecsWorld};
+use hecs::World as HecsWorld;
 use rapier3d::prelude::RigidBodyHandle;
 use serde::{Deserialize, Serialize};
 

@@ -48,3 +48,8 @@ To parallelize the advanced GPU-driven rendering pipeline developed inside `fluo
    * Implement GPU cluster evaluation and continuous LOD streaming for dense map terrain and constellation views.
 5. **Mobile Thermal & Power Scaling:**
    * Dynamic frame rate throttling (e.g., dropping from 60 FPS down to 15-30 FPS or idle when static) to eliminate overheating and battery drain.
+
+> [!WARNING]
+> **CROSS-APP BOUNDARIES**
+> Agents assigned to work on the HeavenlyBound ecosystem apps (e.g., `functional_test_app`, `hybrid_2d_3d`) must NOT modify files outside their designated application directories unless explicitly required to fix a cross-cutting dependency.
+> Core engine functionality (`fluorite_core`, `fluoderpod_render`) and packages (`fluorescent/packages/*`) are managed by engine-specific agents.

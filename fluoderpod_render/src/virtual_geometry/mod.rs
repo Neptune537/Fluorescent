@@ -66,27 +66,27 @@ impl FileClusterCache {
 impl ClusterStorage for FileClusterCache {
     fn fetch_cluster(&self, cluster_id: u32) -> Option<ClusterData> {
         let file_path = self.base_path.join(format!("{}.cluster", cluster_id));
-        
+
         let file_data = std::fs::read(&file_path).ok()?;
-        
+
         // We assume the binary format matches the internal ClusterData layout.
         // For production, we'd need a proper deserialization/header check.
         // As a simple placeholder, we attempt to cast the first 40 bytes to a ClusterHeader.
         if file_data.len() < std::mem::size_of::<ClusterHeader>() {
             return None;
         }
-        
+
         let (header_bytes, payload) = file_data.split_at(std::mem::size_of::<ClusterHeader>());
         let header: &ClusterHeader = bytemuck::try_from_bytes(header_bytes).ok()?;
-        
+
         // Next extract vertices and indices
         let vertex_bytes_len = header.vertex_count as usize * 16; // arbitrary vertex stride assumption
         let index_bytes_len = header.index_count as usize * 4;
-        
+
         if payload.len() < vertex_bytes_len + index_bytes_len {
             return None;
         }
-        
+
         let vertex_data = payload[..vertex_bytes_len].to_vec();
         let index_data = payload[vertex_bytes_len..vertex_bytes_len + index_bytes_len].to_vec();
 

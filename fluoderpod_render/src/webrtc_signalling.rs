@@ -1,11 +1,11 @@
+use futures_util::StreamExt;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::accept_async;
-use futures_util::StreamExt;
-use serde::{Deserialize, Serialize};
+use webrtc::ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit};
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
-use webrtc::ice_transport::ice_candidate::{RTCIceCandidate, RTCIceCandidateInit};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SignalMessage {
@@ -42,7 +42,9 @@ impl SignallingServer {
 
     pub async fn start(&self, peer_connection: Arc<RTCPeerConnection>) {
         let addr = format!("0.0.0.0:{}", self.port);
-        let listener = TcpListener::bind(&addr).await.expect("Failed to bind signalling server");
+        let listener = TcpListener::bind(&addr)
+            .await
+            .expect("Failed to bind signalling server");
         log::info!("Signalling Server listening on: {}", addr);
 
         while let Ok((stream, _)) = listener.accept().await {

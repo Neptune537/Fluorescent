@@ -27,6 +27,7 @@ class FluoriteEngineBridge {
 
     _connectToNexus();
     return 1; // Return stub textureId
+
   }
 
   void _connectToNexus() {
@@ -70,7 +71,7 @@ class FluoriteEngineBridge {
 
   void disconnect() {
     _channel?.sink.close(status.goingAway);
-    return 1; // Return stub textureId
+
   }
 
   /// Fluoderpod implementation of Zero-Copy FFI batching simulation.

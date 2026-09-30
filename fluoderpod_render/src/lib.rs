@@ -3,9 +3,9 @@ pub mod culling;
 pub mod nexus_client;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod reticulum_bridge;
+pub mod thermal;
 pub mod unified_pipeline;
 pub mod virtual_geometry;
-pub mod thermal;
 
 /// The main entry point for the fluoderpod GPU-driven render graph.
 pub struct FluoderpodRenderer {
@@ -60,14 +60,20 @@ impl FluoderpodRenderer {
         let _ = self.pipeline_manager.render_command_tx.send(cmd);
     }
 
-    pub fn ingest_fluoderpod_batch(&mut self, raw_entity_data: &[u8]) -> Result<usize, &'static str> {
-        if raw_entity_data.len() % std::mem::size_of::<unified_pipeline::PackedEntityInstance>() != 0 {
+    pub fn ingest_fluoderpod_batch(
+        &mut self,
+        raw_entity_data: &[u8],
+    ) -> Result<usize, &'static str> {
+        if raw_entity_data.len() % std::mem::size_of::<unified_pipeline::PackedEntityInstance>()
+            != 0
+        {
             return Err("Entity buffer byte length is not a multiple of 48 bytes");
         }
 
         // Validate bytemuck cast without copying
-        let _instances: &[unified_pipeline::PackedEntityInstance] = bytemuck::try_cast_slice(raw_entity_data)
-            .map_err(|_| "Failed to cast entity slice to PackedEntityInstance")?;
+        let _instances: &[unified_pipeline::PackedEntityInstance] =
+            bytemuck::try_cast_slice(raw_entity_data)
+                .map_err(|_| "Failed to cast entity slice to PackedEntityInstance")?;
 
         let instance_count = _instances.len();
         self.num_instances = instance_count as u32;
@@ -75,7 +81,7 @@ impl FluoderpodRenderer {
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(bridge) = &self.reticulum_bridge {
             bridge.send_nexus_message(reticulum_bridge::NexusMessage::Telemetry {
-                payload: format!("Batch update with {} instances", instance_count)
+                payload: format!("Batch update with {} instances", instance_count),
             });
         }
 
@@ -86,18 +92,30 @@ impl FluoderpodRenderer {
     }
 
     /// Executes the full GPU-driven frame: Culling -> Virtual Geometry LOD -> Indirect Draw
-    pub fn execute_frame<'a>(&'a mut self, encoder: &mut wgpu::CommandEncoder, render_pass: &mut wgpu::RenderPass<'a>) {
+    pub fn execute_frame<'a>(
+        &'a mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        render_pass: &mut wgpu::RenderPass<'a>,
+    ) {
         self.pipeline_manager.flush_staging_to_gpu();
 
         // 1. Dispatch Frustum & Occlusion Culling
-        if let (Some(culler), Some(camera_buf), Some(instances_buf), Some(indirect_buf), Some(compact_buf), Some(hzb_tex), Some(hzb_samp)) = (
+        if let (
+            Some(culler),
+            Some(camera_buf),
+            Some(instances_buf),
+            Some(indirect_buf),
+            Some(compact_buf),
+            Some(hzb_tex),
+            Some(hzb_samp),
+        ) = (
             &self.culling_system,
             &self.camera_uniform_buffer,
             &self.instances_buffer,
             &self.pipeline_manager.indirect_draw_buffer,
             &self.compact_instances_buffer,
             &self.hzb_texture,
-            &self.hzb_sampler
+            &self.hzb_sampler,
         ) {
             culler.dispatch_occlusion_culling(
                 encoder,
@@ -107,14 +125,20 @@ impl FluoderpodRenderer {
                 compact_buf,
                 hzb_tex,
                 hzb_samp,
-                self.num_instances
+                self.num_instances,
             );
-        } else if let (Some(culler), Some(camera_buf), Some(instances_buf), Some(indirect_buf), Some(compact_buf)) = (
+        } else if let (
+            Some(culler),
+            Some(camera_buf),
+            Some(instances_buf),
+            Some(indirect_buf),
+            Some(compact_buf),
+        ) = (
             &self.culling_system,
             &self.camera_uniform_buffer,
             &self.instances_buffer,
             &self.pipeline_manager.indirect_draw_buffer,
-            &self.compact_instances_buffer
+            &self.compact_instances_buffer,
         ) {
             // Fallback to frustum culling if HZB is not available
             culler.dispatch_frustum_culling(
@@ -123,17 +147,23 @@ impl FluoderpodRenderer {
                 instances_buf,
                 indirect_buf,
                 compact_buf,
-                self.num_instances
+                self.num_instances,
             );
         }
 
         // 2. Dispatch Virtual Geometry Cluster Selection
-        if let (Some(vg_system), Some(camera_buf), Some(metadata_buf), Some(output_buf), Some(draw_count_buf)) = (
+        if let (
+            Some(vg_system),
+            Some(camera_buf),
+            Some(metadata_buf),
+            Some(output_buf),
+            Some(draw_count_buf),
+        ) = (
             &self.virtual_geometry_system,
             &self.camera_uniform_buffer,
             &self.cluster_metadata_buffer,
             &self.output_clusters_buffer,
-            &self.draw_count_buffer
+            &self.draw_count_buffer,
         ) {
             vg_system.dispatch_cluster_evaluation(
                 encoder,
@@ -142,7 +172,7 @@ impl FluoderpodRenderer {
                 output_buf,
                 draw_count_buf,
                 self.num_clusters,
-                &self.pipeline_manager.device
+                &self.pipeline_manager.device,
             );
         }
 
@@ -172,7 +202,8 @@ pub async fn create_webgpu_surface_from_canvas(
     let canvas = document
         .get_element_by_id(canvas_id)
         .ok_or_else(|| format!("Canvas element '{}' not found", canvas_id))?;
-    let html_canvas: web_sys::HtmlCanvasElement = canvas.dyn_into().map_err(|_| "Element is not a canvas")?;
+    let html_canvas: web_sys::HtmlCanvasElement =
+        canvas.dyn_into().map_err(|_| "Element is not a canvas")?;
     let surface = instance.create_surface(wgpu::SurfaceTarget::Canvas(html_canvas))?;
     Ok(surface)
 }
@@ -249,9 +280,21 @@ mod tests {
         let invalid_odd = vec![0u8; 24];
         let invalid_unaligned = vec![0u8; 50];
 
-        assert_eq!(valid_single.len() % std::mem::size_of::<PackedEntityInstance>(), 0);
-        assert_eq!(valid_double.len() % std::mem::size_of::<PackedEntityInstance>(), 0);
-        assert_ne!(invalid_odd.len() % std::mem::size_of::<PackedEntityInstance>(), 0);
-        assert_ne!(invalid_unaligned.len() % std::mem::size_of::<PackedEntityInstance>(), 0);
+        assert_eq!(
+            valid_single.len() % std::mem::size_of::<PackedEntityInstance>(),
+            0
+        );
+        assert_eq!(
+            valid_double.len() % std::mem::size_of::<PackedEntityInstance>(),
+            0
+        );
+        assert_ne!(
+            invalid_odd.len() % std::mem::size_of::<PackedEntityInstance>(),
+            0
+        );
+        assert_ne!(
+            invalid_unaligned.len() % std::mem::size_of::<PackedEntityInstance>(),
+            0
+        );
     }
 }

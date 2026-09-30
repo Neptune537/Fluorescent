@@ -15,7 +15,9 @@ const AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT: u64 = 1 << 9;
 const AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM: u32 = 1;
 
 #[no_mangle]
-pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_createHardwareBuffer<'local>(
+pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_createHardwareBuffer<
+    'local,
+>(
     mut _env: jni::JNIEnv<'local>,
     _class: JObject<'local>,
     width: jint,
@@ -48,7 +50,9 @@ pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_creat
 }
 
 #[no_mangle]
-pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_destroyHardwareBuffer<'local>(
+pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_destroyHardwareBuffer<
+    'local,
+>(
     mut _env: jni::JNIEnv<'local>,
     _class: JObject<'local>,
     buffer_ptr: jlong,
@@ -63,22 +67,22 @@ pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_destr
 }
 
 #[no_mangle]
-pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_createSurfaceFromWindow<'local>(
+pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_createSurfaceFromWindow<
+    'local,
+>(
     env: *mut jni::sys::JNIEnv,
     _class: JClass<'local>,
     surface: JObject<'local>,
 ) -> jlong {
     use ndk::native_window::NativeWindow;
-    let window = unsafe {
-        NativeWindow::from_surface(env as *mut _, surface.as_raw())
-    };
+    let window = unsafe { NativeWindow::from_surface(env as *mut _, surface.as_raw()) };
     match window {
         Some(w) => w.ptr().as_ptr() as jlong,
         None => 0,
     }
 }
 
-/// A conceptual outline of how to import the AHardwareBuffer into a wgpu::Texture 
+/// A conceptual outline of how to import the AHardwareBuffer into a wgpu::Texture
 /// via wgpu-hal and Vulkan on Android.
 pub unsafe fn import_hardware_buffer_to_wgpu(
     device: &wgpu::Device,
@@ -87,7 +91,7 @@ pub unsafe fn import_hardware_buffer_to_wgpu(
     height: u32,
 ) -> Option<wgpu::Texture> {
     // This requires wgpu to be compiled with Vulkan backend enabled.
-    // To bind an AHardwareBuffer, you must construct a VkImage using 
+    // To bind an AHardwareBuffer, you must construct a VkImage using
     // VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID
     // and bind the hardware buffer's memory to it.
 
@@ -99,7 +103,7 @@ pub unsafe fn import_hardware_buffer_to_wgpu(
             //     ..Default::default()
             // };
             // ... Construct vk::Image, allocate memory with android_hardware_buffer_info, and bind.
-            
+
             // For now, this serves as the integration point placeholder.
         }
     });

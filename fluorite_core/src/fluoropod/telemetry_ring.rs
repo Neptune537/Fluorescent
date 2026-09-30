@@ -11,14 +11,16 @@ pub const MAX_RADAR_BLIPS: usize = 32;
 
 /// Compact radar blip representation for tactical HUD overlay.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
 pub struct RadarBlip {
     pub entity_id: u32,
     pub relative_x: f32, // Distance along X axis in meters
     pub relative_z: f32, // Distance along Z axis in meters
     pub altitude_offset: f32,
     pub is_hostile: u8,
-    pub blip_type: u8,   // 0 = infantry, 1 = vehicle, 2 = objective, 3 = projectile
+    pub blip_type: u8, // 0 = infantry, 1 = vehicle, 2 = objective, 3 = projectile
     pub _pad: [u8; 2],
 }
 
@@ -48,7 +50,9 @@ pub struct CombatLogEvent {
 
 /// Telemetry frame payload emitted per simulation tick.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
 pub struct TelemetryFrame {
     pub frame_index: u64,
     pub timestamp_us: u64,

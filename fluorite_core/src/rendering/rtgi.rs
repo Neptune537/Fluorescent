@@ -3,14 +3,14 @@
 //! Provides Acceleration Structure bindings (TLAS/BLAS) and real-time probe irradiance caching
 //! for infinite-bounce indirect diffuse lighting.
 
-use glam::{Mat4, Vec3};
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 /// Top-Level Acceleration Structure (TLAS) Instance descriptor.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TlasInstance {
-    pub transform: [[f32; 4]; 3], // 3x4 row-major transform
+    pub transform: [[f32; 4]; 3],            // 3x4 row-major transform
     pub instance_custom_index_and_mask: u32, // 24-bit custom index, 8-bit mask
     pub instance_shader_binding_table_record_offset_and_flags: u32,
     pub acceleration_structure_reference: u64, // 64-bit GPU device address to BLAS
