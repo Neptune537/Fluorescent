@@ -1,4 +1,10 @@
-# Agent Roles
+# Agent Roles & AAA Architectural Mandate
+
+> [!IMPORTANT]
+> **STRATEGIC BENCHMARK: GTA 6 & CYBERPUNK 2077 QUALITY BAR**
+> The core mandate across all Fluorescent engine agents is to deliver a **flagship AAA 3D graphics, physics, and gameplay engine capable of competing with GTA 6 and Cyberpunk 2077**.
+> **NO LIGHTWEIGHT 2D GAMES OR CANVAS PLACEHOLDERS**:
+> All systems must leverage native GPU-driven 3D rendering (Vulkan 1.3 / WebGPU), 4K PBR materials, Nanite-class virtual geometry streaming, high-density terrain, Pacejka vehicle dynamics, continuous collision detection, and zero-copy swapchain bridges to Flutter.
 
 To effectively implement this complex architecture, we define the following agent roles for concurrent multi-agent execution:
 
