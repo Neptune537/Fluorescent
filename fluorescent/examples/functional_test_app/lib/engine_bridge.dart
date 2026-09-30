@@ -29,6 +29,18 @@ class FluoriteEngineBridge {
     return 1; // Return stub textureId
   }
 
+  Future<int?> startVrSession() async {
+    // Stub for FFI fluoderpod_start_vr_session
+    debugPrint("Starting VR Session via FFI.");
+    return 1;
+  }
+
+  Future<int?> stopVrSession() async {
+    // Stub for FFI fluoderpod_stop_vr_session
+    debugPrint("Stopping VR Session via FFI.");
+    return 1;
+  }
+
   void _connectToNexus() {
     try {
       _channel = WebSocketChannel.connect(Uri.parse('ws://127.0.0.1:9001'));

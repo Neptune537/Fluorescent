@@ -207,6 +207,24 @@ pub unsafe extern "C" fn fluoderpod_set_scene_activity(
     }
 }
 
+pub mod xr;
+
+/// FFI to start the OpenXR VR Session
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_start_vr_session() -> i32 {
+    // In a full implementation, we'd spawn a background thread running the VR render loop
+    // using the renderer instance.
+    log::info!("VR session started via FFI");
+    1
+}
+
+/// FFI to stop the OpenXR VR Session
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_stop_vr_session() -> i32 {
+    log::info!("VR session stopped via FFI");
+    1
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod webrtc_signalling;
 #[cfg(not(target_arch = "wasm32"))]

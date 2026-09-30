@@ -19,8 +19,7 @@ impl HeadlessRenderTarget {
                 if let Some(vk_device) = device {
                     let _raw_dev = vk_device.raw_device();
 
-                    let _export_info = vk::ExportMemoryAllocateInfo::default()
-                        .handle_types(vk::ExternalMemoryHandleTypeFlags::OPAQUE_WIN32);
+        let _export_info = vk::ExportMemoryAllocateInfo::default();
 
                     // Normally we would create the VkImage here and bind memory to it
                     // using `raw_dev.create_image` and `raw_dev.allocate_memory` with the export info attached.

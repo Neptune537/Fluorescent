@@ -12,6 +12,10 @@ pub enum RailMessage {
         diff_buffer: String,
         node_id: String,
     },
+    HeadPose {
+        position: [f32; 3],
+        orientation: [f32; 4], // quaternion x,y,z,w
+    },
     Ping,
 }
 

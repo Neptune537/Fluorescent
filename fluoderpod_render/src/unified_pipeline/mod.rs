@@ -45,17 +45,17 @@ pub struct PipelineManager {
 impl PipelineManager {
     #[cfg(not(target_arch = "wasm32"))]
     pub unsafe fn init_from_openxr_vulkan(
-        vk_instance: ash::Instance,
-        vk_physical_device: ash::vk::PhysicalDevice,
-        vk_device: ash::Device,
-        queue_family_index: u32,
-        queue_index: u32,
+        _vk_instance: ash::Instance,
+        _vk_physical_device: ash::vk::PhysicalDevice,
+        _vk_device: ash::Device,
+        _queue_family_index: u32,
+        _queue_index: u32,
     ) -> Result<Self, &'static str> {
-        // NOTE: In WGPU 0.20, building a wgpu::Device directly from a wgpu_hal::Device requires
-        // wrapping it in a wgpu_core::device::Device and then a wgpu::Device.
-        // (This is highly specific to your WGPU version's `wgpu::Device::from_core` macro/methods).
-        let _ = (vk_instance, vk_physical_device, vk_device, queue_family_index, queue_index);
-        unimplemented!("WGPU Core registration requires exact crate visibility setup, but the hal instances are ready");
+        // For wgpu 0.20, creating a device from raw Vulkan handles requires wgpu_core.
+        // Since wgpu_core is not directly exposed for this operation without specific features,
+        // we return an Error instead of unimplemented!() to gracefully fail and allow the engine to fallback
+        // or handle the error, preventing a hard crash.
+        Err("Cannot directly construct wgpu::Device from wgpu_hal::Device in wgpu 0.20 without wgpu_core access.")
     }
 
     pub fn new(
