@@ -14,6 +14,8 @@ use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 /// - Render thread or previous frame consumers read from `previous_arena()`.
 /// - At the frame boundary, `swap_buffers()` advances the frame index and automatically
 ///   resets the newly active arena in O(1), ensuring zero fragmentation.
+#[flutter_rust_bridge::frb(ignore)]
+#[flutter_rust_bridge::frb(ignore)]
 pub struct DoubleBufferedFrameAllocator {
     /// The two alternating arenas.
     arenas: [ArenaAllocator; 2],
@@ -24,8 +26,6 @@ pub struct DoubleBufferedFrameAllocator {
 }
 
 // Safety: Both backing arenas and atomic state support multi-threaded access.
-unsafe impl Send for DoubleBufferedFrameAllocator {}
-unsafe impl Sync for DoubleBufferedFrameAllocator {}
 
 impl DoubleBufferedFrameAllocator {
     /// Creates a new `DoubleBufferedFrameAllocator` where each frame buffer has `per_frame_capacity` bytes.
@@ -151,3 +151,6 @@ impl CustomAllocator for DoubleBufferedFrameAllocator {
         self.current_arena().capacity_bytes()
     }
 }
+
+unsafe impl Send for DoubleBufferedFrameAllocator {}
+unsafe impl Sync for DoubleBufferedFrameAllocator {}

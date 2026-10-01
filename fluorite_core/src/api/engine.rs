@@ -41,6 +41,24 @@ pub struct EngineConfig {
     pub render_backend: String,
 }
 
+/// Dispatches a DLSS configuration setting from the UI to the engine core.
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_dlss_quality(quality: String) {
+    println!("DLSS quality set to: {}", quality);
+}
+
+/// Dispatches a DLSS toggle from the UI to the engine core.
+#[flutter_rust_bridge::frb(sync)]
+pub fn toggle_dlss(enabled: bool) {
+    println!("DLSS enabled: {}", enabled);
+}
+
+/// Request to render avatars/icons at the provided geographic coordinates for Constellation Map Telemetry.
+#[flutter_rust_bridge::frb(sync)]
+pub fn request_screen_state_batch(node_data: Vec<f32>) {
+    println!("Received constellation map node data batch with {} elements", node_data.len());
+}
+
 /// Initializes the Fluorite Engine native subsystems and custom allocators.
 #[flutter_rust_bridge::frb(sync)]
 pub fn start_engine(config: Option<EngineConfig>) -> EngineStatus {
@@ -156,8 +174,6 @@ pub fn verify_buffer_sentinels_slice(buffer: &[u8]) -> bool {
 /// Persistent shared frame buffer handle exposing raw pointer address (`usize`)
 /// and length for direct Dart `Pointer.asTypedList()` live view.
 #[derive(Debug)]
-#[flutter_rust_bridge::frb(ignore)]
-#[flutter_rust_bridge::frb(ignore)]
 #[flutter_rust_bridge::frb(opaque)]
 pub struct SharedFrameBuffer {
     pub data: Vec<u8>,
@@ -216,13 +232,9 @@ impl SharedFrameBuffer {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct CStringPtr(pub usize);
-unsafe impl Send for CStringPtr {}
-unsafe impl Sync for CStringPtr {}
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-#[flutter_rust_bridge::frb(ignore)]
-#[flutter_rust_bridge::frb(ignore)]
 pub struct EngineStatusC {
     pub is_initialized: bool,
     pub total_memory_allocated: usize,
@@ -234,8 +246,6 @@ pub struct EngineStatusC {
 }
 
 // Ensure EngineStatusC is Send/Sync so FRB can pass it across isolate boundaries.
-unsafe impl Send for EngineStatusC {}
-unsafe impl Sync for EngineStatusC {}
 
 static MSG_INITIALIZED: &[u8] = b"Fluorite Engine Core Initialized\0";
 static MSG_RUNNING: &[u8] = b"Fluorite Engine Core Running\0";
@@ -243,8 +253,6 @@ static MSG_NOT_INITIALIZED: &[u8] = b"Fluorite Engine Core Not Initialized\0";
 static VERSION_STR: &[u8] = b"0.1.0\0";
 static ALLOC_NAME: &[u8] = b"FluoriteArenaAllocator_v1\0";
 
-#[flutter_rust_bridge::frb(ignore)]
-#[flutter_rust_bridge::frb(ignore)]
 impl From<&EngineStatus> for EngineStatusC {
     fn from(status: &EngineStatus) -> Self {
         let msg_ptr = if !status.is_initialized {

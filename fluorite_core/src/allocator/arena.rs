@@ -31,6 +31,8 @@ pub enum AllocError {
 /// - Strict power-of-two alignment padding using `(align - (addr & (align - 1))) & (align - 1)`.
 /// - O(1) bulk reset that reclaims all memory in a single instruction without freeing the backing buffer.
 /// - Comprehensive telemetry: allocated bytes, capacity, remaining bytes, allocation count, and peak usage.
+#[flutter_rust_bridge::frb(ignore)]
+#[flutter_rust_bridge::frb(ignore)]
 pub struct ArenaAllocator {
     /// Pointer to the pre-allocated backing memory block.
     buffer: NonNull<u8>,
@@ -48,8 +50,6 @@ pub struct ArenaAllocator {
 
 // Safety: ArenaAllocator internally uses atomic operations for bump-pointer adjustments
 // and guarantees that concurrent allocations receive non-overlapping memory regions.
-unsafe impl Send for ArenaAllocator {}
-unsafe impl Sync for ArenaAllocator {}
 
 impl ArenaAllocator {
     /// Creates a new `ArenaAllocator` with the requested capacity in bytes.
@@ -103,7 +103,7 @@ impl ArenaAllocator {
             // Rigorous power-of-two alignment padding: (align - (addr & (align - 1))) & (align - 1)
             let padding = (align - (current_addr & (align - 1))) & (align - 1);
 
-            let start_offset = match current_offset.checked_add(padding) {
+            let start_offset: usize = match current_offset.checked_add(padding) {
                 Some(val) => val,
                 None => return Err(AllocError::OutOfMemory),
             };
@@ -246,3 +246,6 @@ impl Drop for ArenaAllocator {
 pub fn verify_buffer_sentinels(buffer: &[u8]) -> bool {
     buffer.len() >= 2 && buffer[0] == SENTINEL_HEADER && buffer[buffer.len() - 1] == SENTINEL_FOOTER
 }
+
+unsafe impl Send for ArenaAllocator {}
+unsafe impl Sync for ArenaAllocator {}
