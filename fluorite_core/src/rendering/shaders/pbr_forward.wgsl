@@ -95,13 +95,17 @@ struct ShadowUniforms {
 @group(1) @binding(9) var emissive_texture: texture_2d<f32>;
 @group(1) @binding(10) var emissive_sampler: sampler;
 
-// Group 2: Shadows
+// Group 2: Shadows & Advanced Lighting
 @group(2) @binding(0) var<uniform> shadow_uniforms: ShadowUniforms;
 @group(2) @binding(1) var shadow_map: texture_depth_2d;
 @group(2) @binding(2) var shadow_sampler: sampler_comparison;
+@group(2) @binding(3) var vsm_page_table: texture_2d<u32>;
+@group(2) @binding(4) var ssgi_texture: texture_2d<f32>;
+@group(2) @binding(5) var ssgi_sampler: sampler;
 
 // Group 3: Model Transform
 @group(3) @binding(0) var<uniform> model_matrix: mat4x4<f32>;
+
 
 // ----------------------------------------------------------------------------
 // Vertex Shader Stage
@@ -193,17 +197,38 @@ fn sample_directional_shadow(world_pos: vec3<f32>, n_dot_l: f32) -> f32 {
         return 1.0;
     }
 
+    // Virtual Shadow Map lookup:
+    // Read page ID from page table
+    let page_table_uv = vec2<u32>(uv * vec2<f32>(textureDimensions(vsm_page_table)));
+    let page_data = textureLoad(vsm_page_table, page_table_uv, 0).r;
+
+    // If page is unmapped (e.g. 0xFFFFFFFF), assume unshadowed
+    if (page_data == 0xFFFFFFFFu) {
+        return 1.0;
+    }
+
+    // Calculate physical atlas UV
+    let atlas_dim = vec2<f32>(textureDimensions(shadow_map));
+    let page_size = 128.0; // Configured resolution_per_page
+    let pages_x = u32(atlas_dim.x / page_size);
+
+    let physical_page_x = f32(page_data % pages_x);
+    let physical_page_y = f32(page_data / pages_x);
+
+    let sub_page_uv = fract(uv * vec2<f32>(textureDimensions(vsm_page_table)));
+    let physical_uv = (vec2<f32>(physical_page_x, physical_page_y) + sub_page_uv) * (page_size / atlas_dim);
+
     // Slope-scaled depth bias
     let bias = max(shadow_uniforms.shadow_bias_max * (1.0 - n_dot_l), shadow_uniforms.shadow_bias_min);
     let current_depth = depth - bias;
 
-    // 3x3 PCF Kernel
-    let texel_size = 1.0 / shadow_uniforms.shadow_map_size;
+    // 3x3 PCF Kernel on Physical Atlas
+    let texel_size = 1.0 / atlas_dim.x;
     var shadow: f32 = 0.0;
     for (var y: i32 = -1; y <= 1; y = y + 1) {
         for (var x: i32 = -1; x <= 1; x = x + 1) {
             let offset = vec2<f32>(f32(x), f32(y)) * texel_size;
-            shadow += textureSampleCompare(shadow_map, shadow_sampler, uv + offset, current_depth);
+            shadow += textureSampleCompare(shadow_map, shadow_sampler, physical_uv + offset, current_depth);
         }
     }
     return shadow / 9.0;
@@ -363,7 +388,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     // 4. Ambient and Emissive Synthesis
-    let ambient = camera.ambient_light.rgb * albedo * ao;
+    let ssgi = textureSample(ssgi_texture, ssgi_sampler, frag_xy / vec2<f32>(camera.screen_width, camera.screen_height)).rgb;
+    let ambient = (camera.ambient_light.rgb + ssgi) * albedo * ao;
     var final_color = direct_lighting + ambient + emissive;
 
     // ACES Filmic Tone Mapping approximation

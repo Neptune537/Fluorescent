@@ -69,7 +69,10 @@ mod shader_compilation_tests {
                 &wgpu::DeviceDescriptor {
                     label: Some("Fluorite Headless PBR Test Device"),
                     required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_defaults(),
+                    required_limits: wgpu::Limits {
+                        max_bind_groups: 5,
+                        ..wgpu::Limits::downlevel_defaults()
+                    },
                 },
                 None,
             ))

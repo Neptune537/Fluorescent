@@ -27,6 +27,9 @@ pub struct FluoderpodRenderer {
     pub hzb_texture: Option<wgpu::TextureView>,
     pub hzb_sampler: Option<wgpu::Sampler>,
 
+    pub vsm_system: Option<advanced_lighting::vsm::VirtualShadowMapSystem>,
+    pub gi_system: Option<advanced_lighting::gi::DynamicGISystem>,
+
     pub num_instances: u32,
     pub num_clusters: u32,
     pub thermal_scaler: thermal::ThermalScaler,
@@ -48,6 +51,8 @@ impl FluoderpodRenderer {
             draw_count_buffer: None,
             hzb_texture: None,
             hzb_sampler: None,
+            vsm_system: None,
+            gi_system: None,
             num_instances: 0,
             num_clusters: 0,
             thermal_scaler: thermal::ThermalScaler::new(),
@@ -88,6 +93,11 @@ impl FluoderpodRenderer {
     /// Executes the full GPU-driven frame: Culling -> Virtual Geometry LOD -> Indirect Draw
     pub fn execute_frame<'a>(&'a mut self, encoder: &mut wgpu::CommandEncoder, render_pass: &mut wgpu::RenderPass<'a>) {
         self.pipeline_manager.flush_staging_to_gpu();
+
+        // 0. Dispatch Pre-Passes: VSM and SSGI
+        if let Some(vsm) = &self.vsm_system {
+            vsm.execute(encoder);
+        }
 
         // 1. Dispatch Frustum & Occlusion Culling
         if let (Some(culler), Some(camera_buf), Some(instances_buf), Some(indirect_buf), Some(compact_buf), Some(hzb_tex), Some(hzb_samp)) = (
