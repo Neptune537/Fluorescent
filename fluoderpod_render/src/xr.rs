@@ -1,6 +1,4 @@
 use openxr as xr;
-use std::sync::Arc;
-use crate::FluoderpodRenderer;
 
 pub struct OpenXrContext {
     pub instance: xr::Instance,
@@ -9,10 +7,10 @@ pub struct OpenXrContext {
     pub space: xr::Space,
     pub frame_waiter: xr::FrameWaiter,
     pub frame_stream: xr::FrameStream<xr::Vulkan>,
-    pub telemetry_sender: Option<XrTelemetrySender>,
 }
 
 impl OpenXrContext {
+    /// Initializes OpenXR for Vulkan, targeting Android (e.g. Meta Quest 3).
     #[cfg(target_os = "android")]
     pub fn new_android(
         app_vm: *mut std::ffi::c_void,
@@ -20,6 +18,7 @@ impl OpenXrContext {
     ) -> Result<Self, xr::sys::Result> {
         let entry = xr::Entry::load().expect("Failed to load OpenXR entry");
 
+        // The OpenXR Android loader requires initialization with the VM and Activity.
         if let Err(e) = entry.initialize_android_loader() {
             log::warn!("Could not initialize Android loader, it might already be initialized or not required: {:?}", e);
         }
@@ -41,17 +40,36 @@ impl OpenXrContext {
 
         let system = instance.system(xr::FormFactor::HEAD_MOUNTED_DISPLAY)?;
 
+        // Fetch Vulkan Graphics Requirements
+        // OpenXR needs to approve the Vulkan version and dictates which Physical Device we must use
         let reqs = instance.vulkan_graphics_requirements2(system)?;
         log::info!("OpenXR Vulkan requirements: min={:?}, max={:?}", reqs.min_api_version_supported, reqs.max_api_version_supported);
 
-        // At this point we would create the vulkan instance using extensions, then ash::Device using requirements,
-        // and finally create the xr::vulkan::SessionCreateInfo to initialize the session.
-        // For now, this initialization pipeline stops here until wgpu_core visibility allows mapping it back down to wgpu.
-        // Returning unimplemented error to prevent runtime crash on initialization until fully integrated.
-        Err(xr::sys::Result::ERROR_RUNTIME_FAILURE)
+        // At this point we would:
+        // 1. Create an `ash::Instance` enabling extensions mandated by OpenXR via `instance.vulkan_instance_extensions(system)`.
+        // 2. Fetch the `vk::PhysicalDevice` from OpenXR using `instance.vulkan_graphics_device(system, vk_instance)`.
+        // 3. Create the `ash::Device` enabling extensions mandated by `instance.vulkan_device_extensions(system)`.
+        // 4. Create the OpenXR session with the `ash::Instance`, `vk::PhysicalDevice`, and `ash::Device`.
+        // 5. Pass those same `ash` handles to `unified_pipeline::PipelineManager::init_from_openxr_vulkan`.
+
+        // Example Session Creation (stubbed because we need the ash bindings connected):
+        // let session = instance.create_session::<xr::Vulkan>(
+        //     system,
+        //     &xr::vulkan::SessionCreateInfo {
+        //         instance: vk_instance.handle().as_raw() as _,
+        //         physical_device: vk_physical_device.as_raw() as _,
+        //         device: vk_device.handle().as_raw() as _,
+        //         queue_family_index,
+        //         queue_index,
+        //     },
+        // )?;
+
+        unimplemented!("Vulkan Device creation logic is partially drafted. Needs ash instantiation before session creation.")
     }
 
+    /// Update XR state, handle events
     pub fn update(&mut self) {
+        // Poll OpenXR events
         while let Some(event) = self.instance.poll_event(&mut Default::default()).unwrap() {
             match event {
                 xr::Event::SessionStateChanged(e) => {
@@ -61,88 +79,6 @@ impl OpenXrContext {
             }
         }
     }
-
-    pub fn render_frame(
-        &mut self,
-        renderer: &mut FluoderpodRenderer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        color_target_left: &wgpu::TextureView,
-        color_target_right: &wgpu::TextureView,
-    ) {
-        let frame_state = self.frame_waiter.wait().unwrap();
-        self.frame_stream.begin().unwrap();
-
-        if !frame_state.should_render {
-            self.frame_stream.end(frame_state.predicted_display_time, xr::EnvironmentBlendMode::OPAQUE, &[]).unwrap();
-            return;
-        }
-
-        let (_flags, views) = self.session.locate_views(
-            xr::ViewConfigurationType::PRIMARY_STEREO,
-            frame_state.predicted_display_time,
-            &self.space,
-        ).unwrap();
-
-        // Broadcast head pose telemetry
-        if let Some(sender) = &self.telemetry_sender {
-            let pose = views[0].pose;
-            sender.send_head_pose(
-                [pose.position.x, pose.position.y, pose.position.z],
-                [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-            );
-        }
-
-        // 1. Render Left Eye
-        let _view_left = views[0];
-        let mut encoder_left = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Left Eye Encoder") });
-        // TODO: update camera uniform buffer with `_view_left.pose`
-        // Workaround for rust wgpu borrow checker on encoder/render pass
-        renderer.pipeline_manager.flush_staging_to_gpu();
-        {
-            let mut rpass_left = encoder_left.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Left Eye Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_target_left,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            renderer.pipeline_manager.submit_indirect_draws(&mut rpass_left);
-        }
-        queue.submit(Some(encoder_left.finish()));
-
-        // 2. Render Right Eye
-        let _view_right = views[1];
-        let mut encoder_right = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Right Eye Encoder") });
-        // TODO: update camera uniform buffer with `_view_right.pose`
-        {
-            let mut rpass_right = encoder_right.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Right Eye Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_target_right,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            renderer.pipeline_manager.submit_indirect_draws(&mut rpass_right);
-        }
-        queue.submit(Some(encoder_right.finish()));
-
-        self.frame_stream.end(frame_state.predicted_display_time, xr::EnvironmentBlendMode::OPAQUE, &[]).unwrap();
-    }
 }
 
 #[cfg(target_os = "android")]
@@ -151,6 +87,11 @@ pub mod jni_bindings {
     use jni::objects::{JClass, JObject};
     use jni::sys::jboolean;
     use jni::JNIEnv;
+
+    // The name of this function must match your Kotlin package structure.
+    // For example, if your package is `com.example.hybrid_2d_3d`, the function is:
+    // Java_com_example_hybrid_12d_13d_MainActivity_initNativeOpenXR
+    // (Note: underscores in package names are escaped with _1)
     
     #[no_mangle]
     pub extern "system" fn Java_com_example_hybrid_12d_13d_MainActivity_initNativeOpenXR(
@@ -159,49 +100,22 @@ pub mod jni_bindings {
         activity: JObject,
     ) -> jboolean {
         let vm = env.get_java_vm().expect("Failed to get JavaVM");
+
+        // Pass the raw pointers for the VM and Activity down to OpenXR
         let vm_ptr = vm.get_java_vm_pointer() as *mut std::ffi::c_void;
+        // In jni >= 0.20, we need to extract the raw object pointer
         let activity_ptr = activity.as_raw() as *mut std::ffi::c_void;
 
         match super::OpenXrContext::new_android(vm_ptr, activity_ptr) {
-            Ok(_) => {
+            Ok(context) => {
                 log::info!("Successfully initialized OpenXR on Android!");
+                // Store the context globally or within the renderer
                 1 // true
             }
             Err(e) => {
                 log::error!("Failed to initialize OpenXR: {:?}", e);
                 0 // false
             }
-        }
-    }
-}
-
-use tokio_tungstenite::tungstenite::protocol::Message;
-use futures_util::SinkExt;
-use crate::nexus_client::RailMessage;
-use tokio::sync::mpsc;
-
-pub struct XrTelemetrySender {
-    tx: mpsc::UnboundedSender<String>,
-}
-
-impl XrTelemetrySender {
-    pub fn new() -> Self {
-        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-        tokio::spawn(async move {
-            let url = "ws://127.0.0.1:9001";
-            if let Ok((mut ws_stream, _)) = tokio_tungstenite::connect_async(url).await {
-                while let Some(msg) = rx.recv().await {
-                    let _ = ws_stream.send(Message::Text(msg)).await;
-                }
-            }
-        });
-        Self { tx }
-    }
-
-    pub fn send_head_pose(&self, pos: [f32; 3], quat: [f32; 4]) {
-        let msg = RailMessage::HeadPose { position: pos, orientation: quat };
-        if let Ok(json) = serde_json::to_string(&msg) {
-            let _ = self.tx.send(json);
         }
     }
 }
