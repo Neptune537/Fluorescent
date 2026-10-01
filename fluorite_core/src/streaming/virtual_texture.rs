@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 
 pub const TILE_SIZE: u32 = 128; // 128x128 texels per tile
-pub const TILE_BORDER: u32 = 4;  // 4-pixel border to eliminate filtering seams
+pub const TILE_BORDER: u32 = 4; // 4-pixel border to eliminate filtering seams
 
 /// 2D Virtual Tile Page coordinate at a given mipmap level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -90,7 +90,9 @@ impl VirtualTextureSystem {
             Some((phys_x, phys_y))
         } else {
             // Evict least-recently used page if pool is saturated
-            if let Some((evicted_page, (evicted_x, evicted_y))) = self.resident_pages.iter().next().map(|(k, v)| (*k, *v)) {
+            if let Some((evicted_page, (evicted_x, evicted_y))) =
+                self.resident_pages.iter().next().map(|(k, v)| (*k, *v))
+            {
                 self.resident_pages.remove(&evicted_page);
                 self.resident_pages.insert(page, (evicted_x, evicted_y));
                 Some((evicted_x, evicted_y))

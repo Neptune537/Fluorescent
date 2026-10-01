@@ -3,10 +3,14 @@
 //! Manages chunk-based spatial grid streaming across hundreds of square kilometers,
 //! dynamically prioritizing I/O transfers based on player velocity and view frustum.
 
+use crate::allocator::ChunkPoolAllocator;
+use crate::ecs::world::StreamingCommand;
 use crate::spatial::Frustum;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
+use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 /// Spatial Chunk coordinate on the world grid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -52,21 +56,36 @@ pub enum ChunkState {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct StreamingPriority(pub f32);
 
+use crate::allocator::ArenaAllocator;
+
 /// Chunk metadata in world streaming.
-#[derive(Debug, Clone)]
 pub struct StreamingChunk {
     pub coord: ChunkCoord,
     pub state: ChunkState,
     pub lod_level: u8,
     pub asset_bytes: usize,
     pub distance_to_camera: f32,
+    pub memory_allocator: Option<Arc<ArenaAllocator>>,
+}
+
+impl Clone for StreamingChunk {
+    fn clone(&self) -> Self {
+        Self {
+            coord: self.coord,
+            state: self.state,
+            lod_level: self.lod_level,
+            asset_bytes: self.asset_bytes,
+            distance_to_camera: self.distance_to_camera,
+            memory_allocator: self.memory_allocator.clone(),
+        }
+    }
 }
 
 /// Configuration for open-world streaming.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamingConfig {
-    pub chunk_size_meters: f32, // e.g. 256.0 meters
-    pub load_radius_chunks: i32, // e.g. 12 chunks (3072 meters)
+    pub chunk_size_meters: f32,       // e.g. 256.0 meters
+    pub load_radius_chunks: i32,      // e.g. 12 chunks (3072 meters)
     pub max_vram_budget_bytes: usize, // e.g. 8 GB
     pub max_concurrent_io_requests: usize,
     pub target_bandwidth_gbps: f32, // e.g. 5.5 GB/s (PCIe 4.0/5.0 NVMe DirectStorage)
@@ -91,26 +110,29 @@ pub struct WorldStreamingManager {
     pub io_queue: VecDeque<ChunkCoord>,
     pub total_resident_bytes: usize,
     pub current_io_transfers: usize,
+    pub chunk_pool: Arc<ChunkPoolAllocator>,
+    pub ecs_command_sender: Option<Sender<StreamingCommand>>,
 }
 
 impl WorldStreamingManager {
-    pub fn new(config: StreamingConfig) -> Self {
+    pub fn new(
+        config: StreamingConfig,
+        chunk_pool: Arc<ChunkPoolAllocator>,
+        ecs_command_sender: Option<Sender<StreamingCommand>>,
+    ) -> Self {
         Self {
             config,
             chunks: HashMap::new(),
             io_queue: VecDeque::new(),
             total_resident_bytes: 0,
             current_io_transfers: 0,
+            chunk_pool,
+            ecs_command_sender,
         }
     }
 
     /// Updates chunk residency, priorities, and triggers asynchronous NVMe load/evict jobs.
-    pub fn update(
-        &mut self,
-        camera_pos: Vec3,
-        camera_velocity: Vec3,
-        _frustum: Option<&Frustum>,
-    ) {
+    pub fn update(&mut self, camera_pos: Vec3, camera_velocity: Vec3, _frustum: Option<&Frustum>) {
         let center_chunk = ChunkCoord::from_world_pos(camera_pos, self.config.chunk_size_meters);
         let radius = self.config.load_radius_chunks;
 
@@ -133,6 +155,7 @@ impl WorldStreamingManager {
                         lod_level: if dist < 500.0 { 0 } else { 1 },
                         asset_bytes: 32 * 1024 * 1024, // ~32 MB per chunk
                         distance_to_camera: dist,
+                        memory_allocator: None,
                     });
 
                     entry.distance_to_camera = dist;
@@ -146,12 +169,24 @@ impl WorldStreamingManager {
         }
 
         // Process I/O transfers up to concurrency limit
-        while self.current_io_transfers < self.config.max_concurrent_io_requests && !self.io_queue.is_empty() {
+        while self.current_io_transfers < self.config.max_concurrent_io_requests
+            && !self.io_queue.is_empty()
+        {
             if let Some(coord) = self.io_queue.pop_front() {
                 if let Some(chunk) = self.chunks.get_mut(&coord) {
-                    chunk.state = ChunkState::Resident;
-                    self.total_resident_bytes += chunk.asset_bytes;
-                    self.current_io_transfers += 1;
+                    // Acquire memory from pool
+                    if let Ok(allocator) = self.chunk_pool.acquire_chunk() {
+                        chunk.state = ChunkState::Resident;
+                        chunk.memory_allocator = Some(allocator);
+                        self.total_resident_bytes += chunk.asset_bytes;
+                        self.current_io_transfers += 1;
+
+                        // Notify ECS to spawn entities for this chunk
+                        if let Some(sender) = &self.ecs_command_sender {
+                            // Let's pass the chunk coord and a simulated entity count (e.g. 1000 per chunk)
+                            let _ = sender.send(StreamingCommand::SpawnEntities(coord, 1000));
+                        }
+                    }
                 }
             }
         }
@@ -166,15 +201,26 @@ impl WorldStreamingManager {
                 .collect();
 
             // Sort by descending distance (farthest first)
-            resident_coords.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            resident_coords
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             for (evict_coord, _) in resident_coords {
                 if self.total_resident_bytes <= self.config.max_vram_budget_bytes {
                     break;
                 }
                 if let Some(chunk) = self.chunks.get_mut(&evict_coord) {
-                    self.total_resident_bytes = self.total_resident_bytes.saturating_sub(chunk.asset_bytes);
+                    self.total_resident_bytes =
+                        self.total_resident_bytes.saturating_sub(chunk.asset_bytes);
                     chunk.state = ChunkState::Unloaded;
+
+                    if let Some(allocator) = chunk.memory_allocator.take() {
+                        self.chunk_pool.recycle_chunk(allocator);
+                    }
+
+                    // Notify ECS to despawn entities for this chunk
+                    if let Some(sender) = &self.ecs_command_sender {
+                        let _ = sender.send(StreamingCommand::DespawnEntities(evict_coord));
+                    }
                 }
             }
         }
@@ -184,7 +230,10 @@ impl WorldStreamingManager {
     }
 
     pub fn resident_chunk_count(&self) -> usize {
-        self.chunks.values().filter(|c| c.state == ChunkState::Resident).count()
+        self.chunks
+            .values()
+            .filter(|c| c.state == ChunkState::Resident)
+            .count()
     }
 
     pub fn resident_memory_mb(&self) -> f32 {
@@ -198,7 +247,8 @@ mod tests {
 
     #[test]
     fn test_world_streaming() {
-        let mut manager = WorldStreamingManager::new(StreamingConfig::default());
+        let chunk_pool = Arc::new(ChunkPoolAllocator::new(1024 * 1024, 16).unwrap());
+        let mut manager = WorldStreamingManager::new(StreamingConfig::default(), chunk_pool, None);
         manager.update(Vec3::new(100.0, 0.0, 100.0), Vec3::ZERO, None);
 
         assert!(manager.resident_chunk_count() > 0);

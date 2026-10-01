@@ -105,4 +105,3 @@ mod tests {
         assert!(res[0].has_los);
     }
 }
-

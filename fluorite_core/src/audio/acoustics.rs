@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AcousticMaterial {
     pub absorption: [f32; 3], // 0.0 = total reflection, 1.0 = total absorption
-    pub scattering: f32,       // Surface roughness diffusion
+    pub scattering: f32,      // Surface roughness diffusion
 }
 
 impl AcousticMaterial {
@@ -103,7 +103,12 @@ impl AcousticTracer {
         let direct_dist = direct_vec.length();
 
         // 1. Direct Occlusion Raycast
-        let direct_ray = Ray::new(emitter.position.into(), direct_vec.normalize_or_zero().into(), 0.0, direct_dist);
+        let direct_ray = Ray::new(
+            emitter.position.into(),
+            direct_vec.normalize_or_zero().into(),
+            0.0,
+            direct_dist,
+        );
         let occlusion_hit = bvh.raycast(&direct_ray, &[]);
 
         let is_occluded = match occlusion_hit {
@@ -175,7 +180,6 @@ mod tests {
             up: Vec3::Y,
         };
         let bvh = FlatBvh::default();
-
 
         let result = tracer.trace(&emitter, &listener, &bvh, 1000.0, 600.0, 0.15);
         assert!(result.rt60_seconds > 0.5);
