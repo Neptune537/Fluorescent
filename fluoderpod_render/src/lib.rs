@@ -147,7 +147,7 @@ impl FluoderpodRenderer {
         }
 
         // 3. Issue Unified Indirect Draw commands
-        self.pipeline_manager.submit_indirect_draws(render_pass);
+        self.pipeline_manager.submit_indirect_draws(render_pass, self.num_instances);
 
         // 4. Adaptive Thermal Throttling
         self.thermal_scaler.throttle();
