@@ -5,7 +5,7 @@
 
 use crate::rendering::pbr::CameraUniforms;
 use crate::spatial::Frustum;
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 
 /// Camera projection mode.
 #[derive(Debug, Clone, Copy, PartialEq)]

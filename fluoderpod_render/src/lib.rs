@@ -234,6 +234,8 @@ pub mod headless_render;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod video_encoder;
+pub mod advanced_lighting;
+pub mod gpu_vfx;
 
 #[cfg(test)]
 mod tests {

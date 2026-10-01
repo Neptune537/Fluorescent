@@ -4,7 +4,7 @@
 //! dynamically prioritizing I/O transfers based on player velocity and view frustum.
 
 use crate::spatial::Frustum;
-use glam::{Vec2, Vec3};
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 

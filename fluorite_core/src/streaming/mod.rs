@@ -5,6 +5,7 @@
 
 pub mod virtual_texture;
 pub mod world_streamer;
+pub mod pcg;
 
 pub use virtual_texture::{FeedbackBuffer, PageCoord, PageTableEntry, VirtualTextureSystem};
 pub use world_streamer::{

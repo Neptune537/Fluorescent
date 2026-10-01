@@ -3,7 +3,7 @@
 //! Eliminates shadow edge shimmering and swimming during camera rotation by computing
 //! tight spherical bounds and snapping light-space projection matrices to shadow map texel intervals.
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 use serde::{Deserialize, Serialize};
 
 pub const NUM_CASCADES: usize = 4;

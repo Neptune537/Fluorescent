@@ -9,14 +9,13 @@
 //! - Cook-Torrance BRDF test: verify energy conservation and physical plausibility.
 
 use glam::{Mat4, Vec3};
-use std::f32::consts::PI;
 
 // ============================================================================
 // Module 1: WGSL Shader Compilation and Uniform Layout Verification
 // ============================================================================
 #[cfg(test)]
 mod shader_compilation_tests {
-    use super::*;
+
 
     struct DummyWaker;
     impl std::task::Wake for DummyWaker {
@@ -181,7 +180,7 @@ mod shader_compilation_tests {
 mod cluster_light_grid_tests {
     use super::*;
     use fluorite_core::rendering::cluster::{
-        ClusterLightGrid, PointLight, SpotLight, NUM_CLUSTERS_X, NUM_CLUSTERS_Y, NUM_CLUSTERS_Z,
+        ClusterLightGrid, PointLight, SpotLight, NUM_CLUSTERS_Z,
         TOTAL_CLUSTERS,
     };
 

@@ -3,7 +3,6 @@ use crate::allocator::{
     SENTINEL_FOOTER, SENTINEL_HEADER,
 };
 use serde::{Deserialize, Serialize};
-use std::ffi::c_char;
 use std::sync::RwLock;
 
 /// Telemetry and lifecycle snapshot of the Fluorite AAA Engine core.
@@ -43,7 +42,7 @@ pub struct EngineConfig {
 
 /// Initializes the Fluorite Engine native subsystems and custom allocators.
 #[flutter_rust_bridge::frb(sync)]
-pub fn start_engine(config: Option<EngineConfig>) -> EngineStatus {
+pub fn start_engine(_config: Option<EngineConfig>) -> EngineStatus {
     let mut guard = ENGINE_ALLOCATOR
         .write()
         .expect("Lock poisoned during start_engine");
@@ -69,7 +68,7 @@ pub fn start_engine(config: Option<EngineConfig>) -> EngineStatus {
 
 /// Draws a wireframe primitive in the 3D space.
 #[flutter_rust_bridge::frb(sync)]
-pub fn draw_wireframe(transform: Vec<f32>, color: u32, thickness: f32) {
+pub fn draw_wireframe(_transform: Vec<f32>, color: u32, thickness: f32) {
     // Stub for rendering primitive shapes in the AAA Engine core.
     println!(
         "Drawing wireframe with thickness {} and color {:X}",

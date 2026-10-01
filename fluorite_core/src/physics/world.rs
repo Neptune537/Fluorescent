@@ -119,7 +119,7 @@ impl PhysicsWorld {
 
     /// Advances the physics simulation by exactly one fixed timestep.
     pub fn step_single_frame(&mut self) {
-        let physics_hooks = ();
+        let _physics_hooks = ();
         let event_handler = ();
 
         self.physics_pipeline.step(

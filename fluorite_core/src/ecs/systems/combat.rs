@@ -1,6 +1,6 @@
 use crate::ecs::components::grid::GridPosition;
 use crate::ecs::components::pieces::Piece;
-use crate::ecs::components::player::{PlayerId, PlayerStats};
+use crate::ecs::components::player::PlayerStats;
 use rand::Rng;
 use std::collections::HashMap;
 
@@ -10,8 +10,8 @@ impl CombatSystem {
     pub fn resolve_combat(
         attacker_stats: &mut PlayerStats,
         defender_stats: &mut PlayerStats,
-        location: GridPosition,
-        pieces: &mut HashMap<GridPosition, Piece>,
+        _location: GridPosition,
+        _pieces: &mut HashMap<GridPosition, Piece>,
     ) -> Result<(), &'static str> {
         let mut rng = rand::thread_rng();
 
