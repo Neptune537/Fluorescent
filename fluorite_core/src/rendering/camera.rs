@@ -38,7 +38,12 @@ pub struct Camera3D {
 
 impl Camera3D {
     /// Creates a default perspective camera looking at the origin from (0, 5, 10).
-    pub fn new_perspective(position: Vec3, target: Vec3, aspect_ratio: f32, fov_degrees: f32) -> Self {
+    pub fn new_perspective(
+        position: Vec3,
+        target: Vec3,
+        aspect_ratio: f32,
+        fov_degrees: f32,
+    ) -> Self {
         Self {
             position,
             target,
@@ -54,7 +59,14 @@ impl Camera3D {
     }
 
     /// Creates an orthographic camera.
-    pub fn new_orthographic(position: Vec3, target: Vec3, width: f32, height: f32, near: f32, far: f32) -> Self {
+    pub fn new_orthographic(
+        position: Vec3,
+        target: Vec3,
+        width: f32,
+        height: f32,
+        near: f32,
+        far: f32,
+    ) -> Self {
         let half_w = width * 0.5;
         let half_h = height * 0.5;
         Self {
@@ -118,7 +130,6 @@ impl Camera3D {
         let (_, _, view_proj) = self.compute_view_projection();
         Frustum::from_view_projection(view_proj)
     }
-
 
     /// Assembles the complete 320-byte `CameraUniforms` struct ready for GPU upload.
     pub fn to_uniforms(
@@ -197,12 +208,8 @@ mod tests {
 
     #[test]
     fn test_camera_matrices() {
-        let camera = Camera3D::new_perspective(
-            Vec3::new(0.0, 5.0, 10.0),
-            Vec3::ZERO,
-            16.0 / 9.0,
-            60.0,
-        );
+        let camera =
+            Camera3D::new_perspective(Vec3::new(0.0, 5.0, 10.0), Vec3::ZERO, 16.0 / 9.0, 60.0);
 
         let (view, proj, view_proj) = camera.compute_view_projection();
         assert!(!view.is_nan());

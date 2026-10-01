@@ -1,9 +1,11 @@
 pub mod arena;
+pub mod chunk_pool;
 pub mod frame;
 
 pub use arena::{
     verify_buffer_sentinels, AllocError, ArenaAllocator, ONE_MB, SENTINEL_FOOTER, SENTINEL_HEADER,
 };
+pub use chunk_pool::ChunkPoolAllocator;
 pub use frame::DoubleBufferedFrameAllocator;
 
 use core::alloc::Layout;

@@ -14,7 +14,7 @@ pub enum PoliceHeatLevel {
     TwoStar = 2,   // Aggressive pursuit: cruiser ramming, PIT maneuvers
     ThreeStar = 3, // High-speed chase: spike strips, police roadblocks
     FourStar = 4,  // Tactical SWAT intervention: assault vehicles, sniper perimeters
-    FiveStar = 5,  // Maximum military/special forces escalation: air support helicopters, armored APCs
+    FiveStar = 5, // Maximum military/special forces escalation: air support helicopters, armored APCs
 }
 
 /// Unit types dispatched into the field.
@@ -65,26 +65,31 @@ impl PoliceResponseTree {
             PoliceHeatLevel::TwoStar => {
                 self.search_perimeter_radius = 250.0;
                 self.units_dispatched.push(DispatchUnitType::PatrolCruiser);
-                self.units_dispatched.push(DispatchUnitType::UndercoverInterceptor);
+                self.units_dispatched
+                    .push(DispatchUnitType::UndercoverInterceptor);
             }
             PoliceHeatLevel::ThreeStar => {
                 self.search_perimeter_radius = 400.0;
                 self.units_dispatched.push(DispatchUnitType::PatrolCruiser);
-                self.units_dispatched.push(DispatchUnitType::UndercoverInterceptor);
+                self.units_dispatched
+                    .push(DispatchUnitType::UndercoverInterceptor);
                 self.units_dispatched.push(DispatchUnitType::RoadblockTeam);
             }
             PoliceHeatLevel::FourStar => {
                 self.search_perimeter_radius = 600.0;
                 self.units_dispatched.push(DispatchUnitType::SwatArmoredVan);
                 self.units_dispatched.push(DispatchUnitType::RoadblockTeam);
-                self.units_dispatched.push(DispatchUnitType::HelicopterAirSupport);
+                self.units_dispatched
+                    .push(DispatchUnitType::HelicopterAirSupport);
             }
             PoliceHeatLevel::FiveStar => {
                 self.search_perimeter_radius = 1000.0;
                 self.units_dispatched.push(DispatchUnitType::SwatArmoredVan);
                 self.units_dispatched.push(DispatchUnitType::RoadblockTeam);
-                self.units_dispatched.push(DispatchUnitType::HelicopterAirSupport);
-                self.units_dispatched.push(DispatchUnitType::HelicopterAirSupport);
+                self.units_dispatched
+                    .push(DispatchUnitType::HelicopterAirSupport);
+                self.units_dispatched
+                    .push(DispatchUnitType::HelicopterAirSupport);
             }
         }
     }
@@ -123,7 +128,9 @@ mod tests {
         police.escalate_heat(PoliceHeatLevel::ThreeStar, Vec3::new(100.0, 0.0, 100.0));
 
         assert_eq!(police.heat_level, PoliceHeatLevel::ThreeStar);
-        assert!(police.units_dispatched.contains(&DispatchUnitType::RoadblockTeam));
+        assert!(police
+            .units_dispatched
+            .contains(&DispatchUnitType::RoadblockTeam));
 
         // Player flees outside 400m perimeter
         let evaded = police.tick_evasion(70.0, Vec3::new(1000.0, 0.0, 1000.0));

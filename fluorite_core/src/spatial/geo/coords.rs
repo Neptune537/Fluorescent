@@ -29,7 +29,14 @@ pub fn lat_lon_alt_to_ecef(lat: f64, lon: f64, alt: f64) -> (f64, f64, f64) {
 
 /// Convert ECEF to East-North-Up (ENU) given a reference Lat/Lon/Alt
 /// Output ENU coordinates are in meters, returning (East, North, Up).
-pub fn ecef_to_enu(x: f64, y: f64, z: f64, ref_lat: f64, ref_lon: f64, ref_alt: f64) -> (f64, f64, f64) {
+pub fn ecef_to_enu(
+    x: f64,
+    y: f64,
+    z: f64,
+    ref_lat: f64,
+    ref_lon: f64,
+    ref_alt: f64,
+) -> (f64, f64, f64) {
     let (ref_x, ref_y, ref_z) = lat_lon_alt_to_ecef(ref_lat, ref_lon, ref_alt);
 
     let dx = x - ref_x;

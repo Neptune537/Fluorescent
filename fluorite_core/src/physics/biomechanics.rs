@@ -54,7 +54,8 @@ impl MuscleJointActuator {
         };
 
         let proportional = axis * (angle_clamped * self.stiffness_kp);
-        let derivative = (self.target_angular_velocity - self.current_angular_velocity) * self.damping_kd;
+        let derivative =
+            (self.target_angular_velocity - self.current_angular_velocity) * self.damping_kd;
         let torque = proportional + derivative;
 
         if torque.length() > self.max_torque {
@@ -101,9 +102,11 @@ impl BiomechanicalController {
         // Dynamic Zero-Moment Point (ZMP) estimation
         let g = 9.81;
         let zmp = Vec3::new(
-            self.center_of_mass.x - (self.center_of_mass.y / g) * (self.linear_velocity.x / dt.max(1e-4)),
+            self.center_of_mass.x
+                - (self.center_of_mass.y / g) * (self.linear_velocity.x / dt.max(1e-4)),
             0.0,
-            self.center_of_mass.z - (self.center_of_mass.y / g) * (self.linear_velocity.z / dt.max(1e-4)),
+            self.center_of_mass.z
+                - (self.center_of_mass.y / g) * (self.linear_velocity.z / dt.max(1e-4)),
         );
 
         let distance_to_support = (zmp - self.support_polygon_center).length();

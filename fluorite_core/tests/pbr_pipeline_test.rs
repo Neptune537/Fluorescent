@@ -16,7 +16,6 @@ use glam::{Mat4, Vec3};
 #[cfg(test)]
 mod shader_compilation_tests {
 
-
     struct DummyWaker;
     impl std::task::Wake for DummyWaker {
         fn wake(self: std::sync::Arc<Self>) {}
@@ -180,8 +179,7 @@ mod shader_compilation_tests {
 mod cluster_light_grid_tests {
     use super::*;
     use fluorite_core::rendering::cluster::{
-        ClusterLightGrid, PointLight, SpotLight, NUM_CLUSTERS_Z,
-        TOTAL_CLUSTERS,
+        ClusterLightGrid, PointLight, SpotLight, NUM_CLUSTERS_Z, TOTAL_CLUSTERS,
     };
 
     /// Generates 1,024 dynamic point and spot lights distributed across the camera frustum,
