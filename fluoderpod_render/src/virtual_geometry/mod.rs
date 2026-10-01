@@ -6,8 +6,7 @@ use std::path::PathBuf;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ClusterHeader {
-    pub sphere_center: [f32; 3],
-    pub sphere_radius: f32,
+    pub sphere_bounds: [f32; 4],
     pub lod_error: f32,
     pub parent_lod_error: f32,
     pub cluster_id: u32,
@@ -16,6 +15,7 @@ pub struct ClusterHeader {
     pub vertex_count: u32,
     pub index_offset: u32,
     pub index_count: u32,
+    pub _padding: [u32; 2],
 }
 
 #[derive(Clone, Debug)]
@@ -114,30 +114,10 @@ impl VirtualGeometrySystem {
             label: Some("Virtual Geometry Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::COMPUTE,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -154,6 +134,16 @@ impl VirtualGeometrySystem {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
                     binding: 3,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
@@ -164,7 +154,7 @@ impl VirtualGeometrySystem {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 4,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: false },
@@ -204,6 +194,7 @@ impl VirtualGeometrySystem {
         metadata_buffer: &wgpu::Buffer,
         output_buffer: &wgpu::Buffer,
         draw_count_buffer: &wgpu::Buffer,
+        page_fault_buffer: &wgpu::Buffer,
         num_clusters: u32,
         device: &wgpu::Device,
     ) {
@@ -226,6 +217,10 @@ impl VirtualGeometrySystem {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: draw_count_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: page_fault_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -291,5 +286,63 @@ impl ClusterStreamer {
             let index_offset = cluster_data.header.index_offset as wgpu::BufferAddress;
             queue.write_buffer(index_buffer, index_offset, &cluster_data.index_data);
         }
+    }
+
+    /// Readback page faults asynchronously without stalling the CPU (N-frame delayed)
+    pub fn readback_page_faults(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        page_fault_buffer: &wgpu::Buffer,
+        max_faults: u32,
+    ) {
+        let buffer_size = (4 + max_faults * 4) as wgpu::BufferAddress;
+        let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Page Fault Staging Buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Page Fault Readback Encoder"),
+        });
+
+        encoder.copy_buffer_to_buffer(page_fault_buffer, 0, &staging_buffer, 0, buffer_size);
+
+        // Reset the fault count to 0 for the next frame
+
+        encoder.clear_buffer(page_fault_buffer, 0, Some(4));
+
+        queue.submit(std::iter::once(encoder.finish()));
+
+        let request_tx = self.request_tx.clone();
+
+        // We move staging_buffer into a shared Arc to satisfy static lifetime requirements
+        // of wgpu::Buffer::map_async.
+        let staging_buffer = std::sync::Arc::new(staging_buffer);
+        let buffer_slice_arc = staging_buffer.clone();
+
+        staging_buffer.slice(..).map_async(wgpu::MapMode::Read, move |result| {
+            if result.is_ok() {
+                let data = buffer_slice_arc.slice(..).get_mapped_range();
+                let mut offset = 0;
+                let mut count_bytes = [0u8; 4];
+                count_bytes.copy_from_slice(&data[0..4]);
+                let fault_count = u32::from_ne_bytes(count_bytes);
+                offset += 4;
+
+                // Process up to max_faults or fault_count, whichever is smaller
+                let limit = fault_count.min(max_faults);
+
+                for _ in 0..limit {
+                    let mut id_bytes = [0u8; 4];
+                    id_bytes.copy_from_slice(&data[offset..offset + 4]);
+                    let cluster_id = u32::from_ne_bytes(id_bytes);
+                    let _ = request_tx.try_send(cluster_id);
+                    offset += 4;
+                }
+            }
+        });
     }
 }
