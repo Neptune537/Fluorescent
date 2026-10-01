@@ -1,6 +1,6 @@
 use crate::ecs::components::grid::GridPosition;
 use crate::ecs::components::pieces::Piece;
-use crate::ecs::components::player::{PlayerId, PlayerStats};
+use crate::ecs::components::player::PlayerStats;
 use std::collections::HashMap;
 
 pub struct MovementSystem;

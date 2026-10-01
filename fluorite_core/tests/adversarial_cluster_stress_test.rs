@@ -5,7 +5,7 @@
 //! and GPU memory layout parity of `fluorite_core::rendering::cluster::ClusterLightGrid`.
 
 use fluorite_core::rendering::cluster::{
-    ClusterLightGrid, GpuLight, PointLight, SpotLight, NUM_CLUSTERS_X, NUM_CLUSTERS_Y,
+    ClusterLightGrid, GpuLight, PointLight, SpotLight,
     NUM_CLUSTERS_Z, TOTAL_CLUSTERS,
 };
 use glam::{Mat4, Vec3};

@@ -6,7 +6,7 @@
 use crate::rendering::pbr::PbrMaterialUniforms;
 use crate::spatial::Aabb;
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec3, Vec4};
+use glam::Vec3;
 
 /// Standard 3D PBR Vertex structure matching GPU layout:
 /// - `@location(0) position: vec3<f32>` (12 bytes)

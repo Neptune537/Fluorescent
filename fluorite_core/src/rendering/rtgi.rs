@@ -3,7 +3,7 @@
 //! Provides Acceleration Structure bindings (TLAS/BLAS) and real-time probe irradiance caching
 //! for infinite-bounce indirect diffuse lighting.
 
-use glam::{Mat4, Vec3};
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 /// Top-Level Acceleration Structure (TLAS) Instance descriptor.

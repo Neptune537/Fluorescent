@@ -8,6 +8,7 @@ pub mod character_controller;
 pub mod sync;
 pub mod vehicle;
 pub mod world;
+pub mod destruction;
 
 pub use aerohydro::{FluidMedium, Hydrodynamics};
 pub use biomechanics::{BalanceState, BiomechanicalController, MuscleJointActuator};

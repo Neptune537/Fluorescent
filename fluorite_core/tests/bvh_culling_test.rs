@@ -2,7 +2,7 @@ use std::mem::{align_of, size_of};
 
 use fluorite_core::spatial::{
     cull_frustum_exact, cull_frustum_with_stats, find_broadphase_pairs, find_broadphase_pairs_dual,
-    query_aabb_overlap, Aabb, FlatBvh, FlatBvhNode, Frustum, FrustumIntersection, Plane, Ray,
+    query_aabb_overlap, Aabb, FlatBvh, FlatBvhNode, Frustum, Plane, Ray,
 };
 use glam::{Mat4, Vec3, Vec3A};
 
