@@ -114,4 +114,23 @@ class BackendService {
       }));
     }
   }
+
+  void sendMessage(String to, String content) {
+    if (_channel != null) {
+      final payload = jsonEncode({
+        'name': to,
+        'content': content,
+      });
+      _channel!.sink.add(jsonEncode({
+        'type': 'event',
+        'event': {
+          'id': 'mock_hash_${DateTime.now().millisecondsSinceEpoch}',
+          'did': 'did:nexus:mock_user',
+          'eventType': 'DM',
+          'payload': payload,
+          'signature': 'mock_signature',
+        }
+      }));
+    }
+  }
 }
