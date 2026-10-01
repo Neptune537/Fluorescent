@@ -278,6 +278,7 @@ impl ComputeCuller {
             ],
         });
 
+        encoder.clear_buffer(indirect_draw_buffer, 4, Some(4));
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("Frustum Culling Pass"),
             timestamp_writes: None,
@@ -370,6 +371,7 @@ impl ComputeCuller {
             ],
         });
 
+        encoder.clear_buffer(indirect_draw_buffer, 4, Some(4));
         let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("HZB Occlusion Culling Pass"),
             timestamp_writes: None,
