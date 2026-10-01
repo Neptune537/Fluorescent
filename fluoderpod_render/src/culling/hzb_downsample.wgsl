@@ -22,7 +22,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // So minimum depth value represents the furthest point.
     // "downsamples ... taking max(depth) for Reverse-Z [1.0 -> 0.0]"
     // The requirement explicitly states "max(depth)".
-    let max_depth = max(max(d0, d1), max(d2, d3));
+    // In Reverse-Z (1.0 near, 0.0 far), the furthest point has the minimum depth.
+    let max_depth = min(min(d0, d1), min(d2, d3));
 
     textureStore(output_tex, vec2<i32>(global_id.xy), vec4<f32>(max_depth, 0.0, 0.0, 0.0));
 }

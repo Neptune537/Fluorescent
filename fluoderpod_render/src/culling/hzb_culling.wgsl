@@ -61,7 +61,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         // Project AABB corners to NDC
         var min_xy = vec2<f32>(1.0, 1.0);
         var max_xy = vec2<f32>(-1.0, -1.0);
-        var min_z = 0.0; // Reverse-Z: 0.0 is furthest
+        var max_z = -1.0; // Reverse-Z: max_z is nearest. Init with far value.
 
         let corners = array<vec3<f32>, 8>(
             vec3<f32>(aabb_min.x, aabb_min.y, aabb_min.z),
@@ -74,23 +74,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             vec3<f32>(aabb_max.x, aabb_max.y, aabb_max.z)
         );
 
-        var all_behind_near_plane = true;
+        var any_behind_near_plane = false;
 
         for (var i = 0u; i < 8u; i = i + 1u) {
             let clip = camera.view_proj * vec4<f32>(corners[i], 1.0);
-            if (clip.w > 0.0) {
-                all_behind_near_plane = false;
+            if (clip.w <= 0.0 || clip.z > clip.w) { // Behind near plane
+                any_behind_near_plane = true;
+            } else {
                 let ndc = clip.xyz / clip.w;
                 min_xy = min(min_xy, ndc.xy);
                 max_xy = max(max_xy, ndc.xy);
-
-                if (i == 0u || ndc.z < min_z) {
-                    min_z = ndc.z; // Track the minimum Z value across vertices
-                }
+                max_z = max(max_z, ndc.z); // Track the maximum Z value (nearest point in Reverse-Z)
             }
         }
 
-        if (!all_behind_near_plane) {
+        if (!any_behind_near_plane) {
             // Convert NDC to UV [0, 1]
             let uv_min = min_xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5);
             let uv_max = max_xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5);
@@ -107,12 +105,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 mip = ceil(log2(max_dim));
             }
 
-            let tex_dim = vec2<f32>(textureDimensions(hzb_tex, i32(mip)));
-            let sample_uv = (rect_min + rect_max) * 0.5;
-            let hzb_depth = textureSampleLevel(hzb_tex, hzb_sampler, sample_uv, mip).r;
+            // 4-tap sampling of the HZB texture
+            let d0 = textureSampleLevel(hzb_tex, hzb_sampler, vec2<f32>(rect_min.x, rect_min.y), mip).r;
+            let d1 = textureSampleLevel(hzb_tex, hzb_sampler, vec2<f32>(rect_max.x, rect_min.y), mip).r;
+            let d2 = textureSampleLevel(hzb_tex, hzb_sampler, vec2<f32>(rect_min.x, rect_max.y), mip).r;
+            let d3 = textureSampleLevel(hzb_tex, hzb_sampler, vec2<f32>(rect_max.x, rect_max.y), mip).r;
 
-            // object_min_depth < hzb_depth implies occluded in Reverse-Z
-            if (min_z < hzb_depth) {
+            // In Reverse-Z, HZB stores furthest depth per tile (minimum value)
+            // So we need the furthest of the 4 samples, which is the minimum of them.
+            let hzb_depth = min(min(d0, d1), min(d2, d3));
+
+            // object_nearest_depth < hzb_furthest_depth implies occluded in Reverse-Z
+            if (max_z < hzb_depth) {
                 is_visible = false;
             }
         }
