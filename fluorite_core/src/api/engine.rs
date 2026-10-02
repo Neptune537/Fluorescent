@@ -2,6 +2,7 @@ use crate::allocator::{
     verify_buffer_sentinels as verify_sentinels_internal, DoubleBufferedFrameAllocator,
     SENTINEL_FOOTER, SENTINEL_HEADER,
 };
+use crate::fluoropod::gc_firewall::{GcFirewall, SanitizedUiState};
 use serde::{Deserialize, Serialize};
 use std::sync::RwLock;
 
@@ -55,7 +56,10 @@ pub fn toggle_dlss(enabled: bool) {
 /// Request to render avatars/icons at the provided geographic coordinates for Constellation Map Telemetry.
 #[flutter_rust_bridge::frb(sync)]
 pub fn request_screen_state_batch(node_data: Vec<f32>) {
-    println!("Received constellation map node data batch with {} elements", node_data.len());
+    println!(
+        "Received constellation map node data batch with {} elements",
+        node_data.len()
+    );
 }
 
 /// Initializes the Fluorite Engine native subsystems and custom allocators.
@@ -92,6 +96,32 @@ pub fn draw_wireframe(_transform: Vec<f32>, color: u32, thickness: f32) {
         "Drawing wireframe with thickness {} and color {:X}",
         thickness, color
     );
+}
+
+/// Simulates a massive entity load to verify the Zero-Copy FFI Bridge scalability.
+///
+/// Returns a massive zero-copy buffer containing `count` copies of `SanitizedUiState`.
+#[flutter_rust_bridge::frb(sync)]
+pub fn simulate_massive_entity_load(count: usize) -> Vec<u8> {
+    let size_bytes = count * std::mem::size_of::<SanitizedUiState>();
+    let mut buffer = allocate_engine_buffer(size_bytes);
+
+    // Fill the buffer with dummy state data to simulate massive entity sync
+    let dummy_state = GcFirewall::sanitize(
+        [0.0, 0.0, 1.0],
+        [10.0, 0.0, 0.0],
+        [0.0, 15.0, 0.0],
+        30,
+        90,
+        0.2,
+        Some(([0.1, -0.2], true)),
+    );
+
+    // Using bytemuck to safely cast and copy without overhead
+    let typed_slice: &mut [SanitizedUiState] = bytemuck::cast_slice_mut(&mut buffer);
+    typed_slice.fill(dummy_state);
+
+    buffer
 }
 
 /// Allocates a contiguous buffer of `size_bytes` using the custom `ArenaAllocator`.

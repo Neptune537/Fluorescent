@@ -120,7 +120,14 @@ class _DMsScreenState extends State<DMsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Action for creating a new message
+          _backend.sendMessage('Driver_X', 'Hello! Testing DM.');
+          // Fallback local update for testing if WS is offline
+          var existing = _backend.messages.indexWhere((m) => m['name'] == 'Driver_X');
+          if (existing != -1) {
+             _backend.messages[existing]['lastMessage'] = 'Hello! Testing DM.';
+             _backend.messages[existing]['time'] = 'Just now';
+          }
+          setState(() {});
         },
         child: const Icon(Icons.message),
       ),

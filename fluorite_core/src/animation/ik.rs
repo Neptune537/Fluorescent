@@ -57,7 +57,8 @@ pub fn solve_two_bone_ik(
     let mid_plane_dir = bend_normal.cross(target_dir).normalize_or_zero();
 
     // Rotate upper segment toward pole
-    let mid_pos = root_pos + target_dir * (a * angle_beta.cos()) + mid_plane_dir * (a * angle_beta.sin());
+    let mid_pos =
+        root_pos + target_dir * (a * angle_beta.cos()) + mid_plane_dir * (a * angle_beta.sin());
 
     TwoBoneIkResult {
         mid_joint_pos: mid_pos,

@@ -94,13 +94,13 @@ impl CascadedShadowMap {
 
             let corners_cam = [
                 Vec3::new(-x_near, -y_near, -prev_split),
-                Vec3::new( x_near, -y_near, -prev_split),
-                Vec3::new( x_near,  y_near, -prev_split),
-                Vec3::new(-x_near,  y_near, -prev_split),
-                Vec3::new(-x_far,  -y_far,  -split),
-                Vec3::new( x_far,  -y_far,  -split),
-                Vec3::new( x_far,   y_far,  -split),
-                Vec3::new(-x_far,   y_far,  -split),
+                Vec3::new(x_near, -y_near, -prev_split),
+                Vec3::new(x_near, y_near, -prev_split),
+                Vec3::new(-x_near, y_near, -prev_split),
+                Vec3::new(-x_far, -y_far, -split),
+                Vec3::new(x_far, -y_far, -split),
+                Vec3::new(x_far, y_far, -split),
+                Vec3::new(-x_far, y_far, -split),
             ];
 
             // Transform corners to world space and compute bounding sphere
@@ -123,16 +123,21 @@ impl CascadedShadowMap {
             let light_view = Mat4::look_to_rh(center, light_dir, Vec3::Y);
 
             let mut light_space_center = light_view.transform_point3(center);
-            light_space_center.x = (light_space_center.x * texels_per_unit).floor() / texels_per_unit;
-            light_space_center.y = (light_space_center.y * texels_per_unit).floor() / texels_per_unit;
+            light_space_center.x =
+                (light_space_center.x * texels_per_unit).floor() / texels_per_unit;
+            light_space_center.y =
+                (light_space_center.y * texels_per_unit).floor() / texels_per_unit;
 
             let snapped_center = light_view.inverse().transform_point3(light_space_center);
             let light_view_snapped = Mat4::look_to_rh(snapped_center, light_dir, Vec3::Y);
 
             let light_proj = Mat4::orthographic_rh(
-                -radius, radius,
-                -radius, radius,
-                -radius * 4.0, radius * 4.0,
+                -radius,
+                radius,
+                -radius,
+                radius,
+                -radius * 4.0,
+                radius * 4.0,
             );
 
             cascades.push(CascadeData {

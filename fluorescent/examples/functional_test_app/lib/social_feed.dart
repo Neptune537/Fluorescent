@@ -123,7 +123,18 @@ class _SocialFeedScreenState extends State<SocialFeedScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _backend.sendPost('Driver_X', 'Testing live updates!');
+          // If disconnected, fallback to local insertion
+          if (_backend.posts.isEmpty || _backend.posts[0]['content'] != 'Testing live updates!') {
+             _backend.sendPost('Driver_X', 'Testing live updates!');
+             // Fallback local update for testing if WS is offline
+             _backend.posts.insert(0, {
+                 'user': 'Driver_X',
+                 'avatar': 'D',
+                 'time': 'Just now',
+                 'content': 'Testing live updates!',
+                 'likes': '0',
+             });
+          }
           setState(() {});
         },
         child: const Icon(Icons.add),

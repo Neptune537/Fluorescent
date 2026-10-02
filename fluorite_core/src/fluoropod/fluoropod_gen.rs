@@ -32,7 +32,10 @@ impl BinarySchemaGenerator {
         out.push_str(&format!("class {} {{\n", schema.struct_name));
         out.push_str("  final ByteData _data;\n");
         out.push_str("  final int offset;\n\n");
-        out.push_str(&format!("  const {}(this._data, [this.offset = 0]);\n\n", schema.struct_name));
+        out.push_str(&format!(
+            "  const {}(this._data, [this.offset = 0]);\n\n",
+            schema.struct_name
+        ));
 
         for field in &schema.fields {
             match field.rust_type.as_str() {

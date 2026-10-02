@@ -84,6 +84,14 @@ class FluoriteEngineBridge {
     _channel?.sink.close(status.goingAway);
   }
 
+  /// Simulates setting the target framerate for the Rust engine.
+  /// Used for Thermal Scaling and Extreme Low-Power Modes.
+  void setTargetFps(int fps) {
+    if (!isInitialized) return;
+    debugPrint("Rust Engine (FFI): Target FPS set to $fps");
+    sendTelemetry("TargetFPS:$fps");
+  }
+
   /// Fluoderpod implementation of Zero-Copy FFI batching simulation.
   /// Allocates a shared memory buffer simulating the Rust memory pointer.
   Uint8List allocateZeroCopyBuffer(int sizeBytes) {

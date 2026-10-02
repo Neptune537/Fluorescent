@@ -24,6 +24,7 @@ pub struct FluoderpodRenderer {
     pub cluster_metadata_buffer: Option<wgpu::Buffer>,
     pub output_clusters_buffer: Option<wgpu::Buffer>,
     pub draw_count_buffer: Option<wgpu::Buffer>,
+    pub page_fault_buffer: Option<wgpu::Buffer>,
     pub hzb_texture: Option<wgpu::TextureView>,
     pub hzb_sampler: Option<wgpu::Sampler>,
 
@@ -33,10 +34,26 @@ pub struct FluoderpodRenderer {
     pub num_instances: u32,
     pub num_clusters: u32,
     pub thermal_scaler: thermal::ThermalScaler,
+    pub virtual_geometry_streamer: Option<virtual_geometry::ClusterStreamer>,
+    pub max_page_faults: u32,
 }
 
 impl FluoderpodRenderer {
     pub fn new(pipeline_manager: unified_pipeline::PipelineManager) -> Self {
+        let max_page_faults = 1024;
+        let page_fault_buffer_size = 4 + max_page_faults as wgpu::BufferAddress * 4;
+
+        let page_fault_buffer = pipeline_manager.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Page Fault Buffer"),
+            size: page_fault_buffer_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // Initialize with count 0
+        let zero: u32 = 0;
+        pipeline_manager.queue.write_buffer(&page_fault_buffer, 0, bytemuck::bytes_of(&zero));
+
         Self {
             pipeline_manager,
             culling_system: None,
@@ -49,6 +66,7 @@ impl FluoderpodRenderer {
             cluster_metadata_buffer: None,
             output_clusters_buffer: None,
             draw_count_buffer: None,
+            page_fault_buffer: Some(page_fault_buffer),
             hzb_texture: None,
             hzb_sampler: None,
             vsm_system: None,
@@ -56,6 +74,8 @@ impl FluoderpodRenderer {
             num_instances: 0,
             num_clusters: 0,
             thermal_scaler: thermal::ThermalScaler::new(),
+            virtual_geometry_streamer: None,
+            max_page_faults,
         }
     }
 
@@ -138,12 +158,13 @@ impl FluoderpodRenderer {
         }
 
         // 2. Dispatch Virtual Geometry Cluster Selection
-        if let (Some(vg_system), Some(camera_buf), Some(metadata_buf), Some(output_buf), Some(draw_count_buf)) = (
+        if let (Some(vg_system), Some(camera_buf), Some(metadata_buf), Some(output_buf), Some(draw_count_buf), Some(page_fault_buf)) = (
             &self.virtual_geometry_system,
             &self.camera_uniform_buffer,
             &self.cluster_metadata_buffer,
             &self.output_clusters_buffer,
-            &self.draw_count_buffer
+            &self.draw_count_buffer,
+            &self.page_fault_buffer
         ) {
             vg_system.dispatch_cluster_evaluation(
                 encoder,
@@ -151,15 +172,29 @@ impl FluoderpodRenderer {
                 metadata_buf,
                 output_buf,
                 draw_count_buf,
+                page_fault_buf,
                 self.num_clusters,
                 &self.pipeline_manager.device
             );
         }
 
         // 3. Issue Unified Indirect Draw commands
-        self.pipeline_manager.submit_indirect_draws(render_pass);
+        self.pipeline_manager.submit_indirect_draws(render_pass, self.num_instances);
 
-        // 4. Adaptive Thermal Throttling
+        // 4. Readback page faults for virtual geometry streaming
+        if let (Some(streamer), Some(page_fault_buf)) = (
+            &self.virtual_geometry_streamer,
+            &self.page_fault_buffer
+        ) {
+            streamer.readback_page_faults(
+                &self.pipeline_manager.device,
+                &self.pipeline_manager.queue,
+                page_fault_buf,
+                self.max_page_faults,
+            );
+        }
+
+        // 5. Adaptive Thermal Throttling
         self.thermal_scaler.throttle();
     }
 

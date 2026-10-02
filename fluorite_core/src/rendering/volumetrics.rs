@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 /// Atmospheric and volumetric weather configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolumetricAtmosphereConfig {
-    pub cloud_coverage: f32, // 0.0 to 1.0
+    pub cloud_coverage: f32,        // 0.0 to 1.0
     pub cloud_altitude_bottom: f32, // e.g. 1500m
-    pub cloud_altitude_top: f32, // e.g. 4000m
+    pub cloud_altitude_top: f32,    // e.g. 4000m
     pub wind_speed: Vec2,
     pub sun_direction: Vec3,
     pub sun_intensity: f32,

@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 
 /// Subsurface scattering material parameters.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
 pub struct SubsurfaceProfile {
     /// Scattering color mean free path (RGB in millimeters)
     pub scatter_color: [f32; 3],

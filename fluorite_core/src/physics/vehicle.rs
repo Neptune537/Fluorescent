@@ -112,10 +112,10 @@ pub struct VehicleDynamics {
 
 impl VehicleDynamics {
     pub fn new(mass: f32) -> Self {
-        let fl = WheelSuspension::new(Vec3::new(-0.8, -0.2,  1.4), 0.45, 35000.0, 4500.0);
-        let fr = WheelSuspension::new(Vec3::new( 0.8, -0.2,  1.4), 0.45, 35000.0, 4500.0);
+        let fl = WheelSuspension::new(Vec3::new(-0.8, -0.2, 1.4), 0.45, 35000.0, 4500.0);
+        let fr = WheelSuspension::new(Vec3::new(0.8, -0.2, 1.4), 0.45, 35000.0, 4500.0);
         let rl = WheelSuspension::new(Vec3::new(-0.8, -0.2, -1.4), 0.45, 38000.0, 4800.0);
-        let rr = WheelSuspension::new(Vec3::new( 0.8, -0.2, -1.4), 0.45, 38000.0, 4800.0);
+        let rr = WheelSuspension::new(Vec3::new(0.8, -0.2, -1.4), 0.45, 38000.0, 4800.0);
 
         Self {
             chassis_mass: mass,

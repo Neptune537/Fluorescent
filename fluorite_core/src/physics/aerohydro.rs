@@ -56,7 +56,8 @@ impl Hydrodynamics {
         }
 
         let dir = velocity / speed;
-        let drag_magnitude = 0.5 * fluid_density * speed * speed * drag_coefficient * cross_sectional_area;
+        let drag_magnitude =
+            0.5 * fluid_density * speed * speed * drag_coefficient * cross_sectional_area;
         -dir * drag_magnitude
     }
 

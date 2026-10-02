@@ -62,8 +62,7 @@ impl GltfMeshLoader {
             let index_data = bytemuck::cast_slice(&cluster_indices).to_vec();
 
             let header = ClusterHeader {
-                sphere_center: center,
-                sphere_radius: radius,
+                sphere_bounds: [center[0], center[1], center[2], radius],
                 lod_error: 0.1, // Dummy error for highest LOD
                 parent_lod_error: std::f32::MAX, // Root node has infinite parent error
                 cluster_id: current_cluster_id,
@@ -72,6 +71,7 @@ impl GltfMeshLoader {
                 vertex_count: chunk.len() as u32,
                 index_offset: 0,
                 index_count: chunk.len() as u32,
+                _padding: [0; 2],
             };
 
             clusters.push(ClusterData {

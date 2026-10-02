@@ -488,8 +488,18 @@ mod tests {
     #[test]
     fn test_ray_intersects_aabb() {
         let aabb = Aabb::new(Vec3A::new(0.0, 0.0, 0.0), Vec3A::new(1.0, 1.0, 1.0));
-        let ray_hit = Ray::new(Vec3A::new(0.5, 0.5, -1.0), Vec3A::new(0.0, 0.0, 1.0), 0.0, 10.0);
-        let ray_miss = Ray::new(Vec3A::new(2.0, 2.0, -1.0), Vec3A::new(0.0, 0.0, 1.0), 0.0, 10.0);
+        let ray_hit = Ray::new(
+            Vec3A::new(0.5, 0.5, -1.0),
+            Vec3A::new(0.0, 0.0, 1.0),
+            0.0,
+            10.0,
+        );
+        let ray_miss = Ray::new(
+            Vec3A::new(2.0, 2.0, -1.0),
+            Vec3A::new(0.0, 0.0, 1.0),
+            0.0,
+            10.0,
+        );
 
         assert!(ray_hit.intersects_aabb(&aabb).is_some());
         assert!(ray_miss.intersects_aabb(&aabb).is_none());

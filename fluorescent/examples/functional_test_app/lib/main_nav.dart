@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart'; // To access MapScreen
 import 'social_feed.dart';
 import 'dms_ui.dart';
+import 'engine_bridge.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -20,6 +21,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Default to map view, set 120fps for high performance
+    FluoriteEngineBridge().setTargetFps(120);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
@@ -31,6 +39,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
+            // Map index is 0, Feed is 1, DMs is 2
+            if (index == 0) {
+              FluoriteEngineBridge().setTargetFps(120);
+            } else {
+              // Thermal Scaling to 15fps when not showing the 3D Map
+              FluoriteEngineBridge().setTargetFps(15);
+            }
           });
         },
         destinations: const [
