@@ -303,3 +303,55 @@ impl From<&EngineStatus> for EngineStatusC {
         }
     }
 }
+
+use crate::streaming::world_streamer::{WorldStreamingManager, StreamingConfig};
+use crate::allocator::ChunkPoolAllocator;
+use glam::Vec3;
+use std::sync::Arc;
+
+static WORLD_STREAMER: std::sync::RwLock<Option<WorldStreamingManager>> = std::sync::RwLock::new(None);
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ChunkStreamingMetricsC {
+    pub resident_chunks: usize,
+    pub resident_memory_mb: f32,
+    pub available_pool_chunks: usize,
+    pub total_page_faults: u32,
+}
+
+/// Retrieves the real-time chunk streaming metrics and virtual geometry page faults.
+#[flutter_rust_bridge::frb(sync)]
+pub fn get_streaming_metrics() -> ChunkStreamingMetricsC {
+    let guard = WORLD_STREAMER.read().expect("Lock poisoned during get_streaming_metrics");
+    match guard.as_ref() {
+        Some(streamer) => ChunkStreamingMetricsC {
+            resident_chunks: streamer.resident_chunk_count(),
+            resident_memory_mb: streamer.resident_memory_mb(),
+            available_pool_chunks: streamer.chunk_pool.available_count(),
+            total_page_faults: 0, // In full implementation, read from fluoderpod_render page fault buffer
+        },
+        None => ChunkStreamingMetricsC {
+            resident_chunks: 0,
+            resident_memory_mb: 0.0,
+            available_pool_chunks: 0,
+            total_page_faults: 0,
+        }
+    }
+}
+
+/// Updates the camera position to drive the asynchronous background chunk streamer.
+#[flutter_rust_bridge::frb(sync)]
+pub fn update_camera_position(x: f32, y: f32, z: f32) {
+    let mut guard = WORLD_STREAMER.write().expect("Lock poisoned during update_camera_position");
+    
+    // Auto-initialize on first use
+    if guard.is_none() {
+        let chunk_pool = Arc::new(ChunkPoolAllocator::new(1024 * 1024, 64).unwrap());
+        *guard = Some(WorldStreamingManager::new(StreamingConfig::default(), chunk_pool, None));
+    }
+    
+    if let Some(streamer) = guard.as_mut() {
+        streamer.update(Vec3::new(x, y, z), Vec3::ZERO, None);
+    }
+}

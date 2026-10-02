@@ -5,6 +5,8 @@ struct CameraUniform {
     viewport_size: vec2<f32>,
     fov: f32,
     _padding2: f32,
+    debug_page_faults: u32,
+    _padding3: vec3<f32>,
 }
 
 struct ClusterHeader {
@@ -99,3 +101,4 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 }
+

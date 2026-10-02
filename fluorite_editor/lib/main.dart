@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'src/node_editor/node_editor_widget.dart';
 
-void main() {
-  runApp(const FluoriteEditorApp());
+import 'src/rust/frb_generated.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  print('Init RustLib...'); await RustLib.init(); print('RustLib init done!');
+  print('Running app...'); runApp(const FluoriteEditorApp());
 }
 
 class FluoriteEditorApp extends StatelessWidget {
@@ -25,3 +29,5 @@ class FluoriteEditorApp extends StatelessWidget {
     );
   }
 }
+
+

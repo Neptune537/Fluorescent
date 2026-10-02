@@ -1,6 +1,6 @@
 pub mod engine;
 
-pub use engine::{
+pub use engine::{get_streaming_metrics, update_camera_position, ChunkStreamingMetricsC, 
     allocate_engine_buffer, get_engine_status, start_engine, verify_buffer_sentinels,
     verify_buffer_sentinels_slice, EngineStatus, EngineStatusC, SharedFrameBuffer,
     DEFAULT_ENGINE_FRAME_CAPACITY,

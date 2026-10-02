@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'models.dart';
 import 'serialization.dart';
+import '../ui/streaming_profiler_overlay.dart';
 
 class NodeEditorScreen extends StatefulWidget {
   const NodeEditorScreen({super.key});
@@ -264,6 +265,7 @@ class _NodeEditorScreenState extends State<NodeEditorScreen> {
                         ),
                       ),
                     ),
+                  const StreamingProfilerOverlay(),
                 ],
               ),
             ),
@@ -540,3 +542,7 @@ class _PropertiesPanel extends StatelessWidget {
     );
   }
 }
+
+
+
+
