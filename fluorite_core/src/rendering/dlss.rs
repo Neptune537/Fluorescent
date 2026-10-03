@@ -5,25 +5,36 @@
 
 use glam::Vec2;
 
-/// Configuration for DLSS upscaling.
+/// Configuration for DLSS/FSR upscaling.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DlssQuality {
+pub enum UpscalerQuality {
     MaxPerformance,
     Balanced,
     MaxQuality,
     UltraQuality,
 }
 
-/// Holds the Vulkan resources required for a DLSS frame evaluation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UpscalerType {
+    None,
+    TAA,
+    FSR2,
+    DLSS,
+}
+
+/// Holds the Vulkan resources required for a temporal frame evaluation.
 /// In a full implementation, these would map to `ash::vk::ImageView` handles
-/// and be passed to the Streamline C++ SDK.
-pub struct DlssEvaluationContext {
+/// and be passed to the Streamline/FSR C++ SDK.
+pub struct TemporalUpscalingContext {
+    pub upscaler_type: UpscalerType,
+    pub quality: UpscalerQuality,
+
     pub render_width: u32,
     pub render_height: u32,
     pub display_width: u32,
     pub display_height: u32,
     
-    // The sub-pixel jitter offset applied this frame (for DLSS to un-jitter)
+    // The sub-pixel jitter offset applied this frame
     pub jitter_offset: Vec2,
     
     // In actual Vulkan implementation, these are vk::ImageView or similar handles
@@ -33,16 +44,39 @@ pub struct DlssEvaluationContext {
     // pub exposure_texture: vk::ImageView,
 }
 
-impl DlssEvaluationContext {
-    /// Dispatches the DLSS compute workload into the Vulkan command buffer.
+impl TemporalUpscalingContext {
+    pub fn new(upscaler_type: UpscalerType, quality: UpscalerQuality, render_width: u32, render_height: u32, display_width: u32, display_height: u32) -> Self {
+        Self {
+            upscaler_type,
+            quality,
+            render_width,
+            render_height,
+            display_width,
+            display_height,
+            jitter_offset: Vec2::ZERO,
+        }
+    }
+
+    /// Dispatches the upscale compute workload into the Vulkan command buffer.
     /// Needs to be called immediately before Post-Processing/Tonemapping.
-    pub fn evaluate_dlss(&self, /* command_buffer: vk::CommandBuffer */) {
-        // 1. Transition color, depth, and velocity buffers to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        // 2. Pass the jitter offset and camera settings to the Streamline API
-        // 3. Dispatch the DLSS compute shader
-        // 4. Transition the output buffer for the next pass (e.g. tonemapping)
-        
-        // Placeholder for FFI call:
-        // streamline_sys::slEvaluateFeature(...)
+    pub fn evaluate_upscaler(&self, /* command_buffer: vk::CommandBuffer */) {
+        match self.upscaler_type {
+            UpscalerType::None => {
+                // Perform a simple blit or no-op if render == display size
+            }
+            UpscalerType::TAA => {
+                // Execute standard TAA history resolve shader
+            }
+            UpscalerType::FSR2 => {
+                // 1. Transition color, depth, and velocity buffers to appropriate layouts
+                // 2. Pass jitter offset and camera settings to the FSR2 API
+                // 3. Dispatch the FSR2 compute shaders
+            }
+            UpscalerType::DLSS => {
+                // 1. Transition buffers
+                // 2. Pass settings to Streamline C++ SDK
+                // 3. Dispatch DLSS
+            }
+        }
     }
 }
