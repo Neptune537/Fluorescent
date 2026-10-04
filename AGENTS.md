@@ -48,3 +48,7 @@ To parallelize the advanced GPU-driven rendering pipeline developed inside `fluo
    * Implement GPU cluster evaluation and continuous LOD streaming for dense map terrain and constellation views.
 5. **Mobile Thermal & Power Scaling:**
    * Dynamic frame rate throttling (e.g., dropping from 60 FPS down to 15-30 FPS or idle when static) to eliminate overheating and battery drain.
+
+> [!NOTE]
+> **DEPENDENCY MANAGEMENT:**
+> The Fluoridian project and its dependencies (like the `tithX` submodule) move very quickly. Always ensure you are pulling the latest changes and updating dependencies before beginning new feature work to prevent massive merge conflicts or regressions.
