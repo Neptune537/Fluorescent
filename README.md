@@ -53,6 +53,12 @@ Fluorescent is a **layered game engine and runtime platform** that combines a na
            ┌────────────────────────┴────────────────────────┐
            ▼                                                 ▼
    Android (Vulkan NDK)                             Web (Wasm / WebGPU)
+
+## 🌌 Cyan Ecosystem
+
+Fluorescent + fluoridian + fluoderpod = cyan.
+
+Fluorescent is the platform for developers to build on cyan, providing the AAA gaming visuals and mechanics, while fluoridian acts as the interface and the overarching cyan network coordinates everything.
 ```
 
 ## ✨ Why Fluorescent?

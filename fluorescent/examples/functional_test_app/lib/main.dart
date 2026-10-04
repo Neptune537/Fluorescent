@@ -1,9 +1,10 @@
-import 'dart:async';
+import 'dart:async' as dart_async;
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-// ignore: unused_import
-import 'package:fluorescent_core/fluorescent_core.dart'; // Just validating import
+import 'package:fluorescent_core/fluorescent_core.dart';
+import 'package:flame/game.dart';
+import 'package:flame/components.dart';
+import 'package:fluorescent_flame/fluorescent_flame.dart';
 import 'engine_bridge.dart';
 import 'main_nav.dart';
 
@@ -37,31 +38,18 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  late GoogleMapController mapController;
-
-  final LatLng _center = const LatLng(37.7749, -122.4194); // SF
   final Random _random = Random();
-
-  final Set<TileOverlay> _tileOverlays = {};
-  Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
-  Timer? _mockLocationTimer;
+  dart_async.Timer? _mockLocationTimer;
+  late final CyanMapGame game;
 
   // Driver Locations
-  LatLng _driver1 = const LatLng(37.7749, -122.4194);
-  LatLng _driver2 = const LatLng(37.7800, -122.4200);
-
-  // Geofence (Event Zone)
-  final LatLng _eventZone = const LatLng(37.7750, -122.4190);
-  final double _eventZoneRadiusDegrees = 0.002;
-
-  bool _isDriver1InZone = false;
+  final Vector3 _driver1 = Vector3(0.0, 0.0, 0.0);
+  final Vector3 _driver2 = Vector3(10.0, 0.0, 10.0);
 
   @override
   void initState() {
     super.initState();
-    _initTileOverlay();
-    _initGeofence();
+    game = CyanMapGame();
     _startMockLocationUpdates();
   }
 
@@ -71,102 +59,92 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
-  void _initTileOverlay() {
-    final TileOverlay tileOverlay = TileOverlay(
-      tileOverlayId: const TileOverlayId('osm_tiles'),
-      tileProvider: _OSMTileProvider(),
-      zIndex: 1,
-    );
-    setState(() {
-      _tileOverlays.add(tileOverlay);
-    });
-  }
-
-  void _initGeofence() {
-    _circles = {
-      Circle(
-        circleId: const CircleId('event_zone_1'),
-        center: _eventZone,
-        radius: 200, // meters roughly
-        fillColor: Colors.red.withValues(alpha: 0.3),
-        strokeColor: Colors.red,
-        strokeWidth: 2,
-      ),
-    };
-  }
-
   void _startMockLocationUpdates() {
-    // Simulate incoming location updates at 2 Hz
-    _mockLocationTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    // Send Cyan telemetry updates at 2 Hz
+    _mockLocationTimer = dart_async.Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (!mounted) return;
       setState(() {
-        // Move drivers randomly
-        _driver1 = LatLng(
-            _driver1.latitude + (_random.nextDouble() - 0.5) * 0.001,
-            _driver1.longitude + (_random.nextDouble() - 0.5) * 0.001);
+        _driver1.x += (_random.nextDouble() - 0.5) * 0.1;
+        _driver1.z += (_random.nextDouble() - 0.5) * 0.1;
 
-        _driver2 = LatLng(
-            _driver2.latitude + (_random.nextDouble() - 0.5) * 0.001,
-            _driver2.longitude + (_random.nextDouble() - 0.5) * 0.001);
+        _driver2.x += (_random.nextDouble() - 0.5) * 0.1;
+        _driver2.z += (_random.nextDouble() - 0.5) * 0.1;
 
-        _markers = {
-          Marker(
-            markerId: const MarkerId('driver_1'),
-            position: _driver1,
-            infoWindow: const InfoWindow(title: 'Driver 1 (Me)'),
-          ),
-          Marker(
-            markerId: const MarkerId('driver_2'),
-            position: _driver2,
-            infoWindow: const InfoWindow(title: 'Driver 2 (Friend)'),
-          ),
-        };
-
-        // FFI Bridge Check
+        // FFI Bridge Check - Send Telemetry to Cyan Network
         final engine = FluoriteEngineBridge();
-        final currentlyInZone = engine.checkGeofenceIntersection(
-            _driver1.latitude, _driver1.longitude, _eventZone.latitude, _eventZone.longitude, _eventZoneRadiusDegrees);
-
-        if (currentlyInZone && !_isDriver1InZone) {
-          _isDriver1InZone = true;
-          debugPrint("Rust Engine (FFI): Driver 1 ENTERED Geofence");
-        } else if (!currentlyInZone && _isDriver1InZone) {
-          _isDriver1InZone = false;
-          debugPrint("Rust Engine (FFI): Driver 1 EXITED Geofence");
-        }
+        engine.sendTelemetry("Driver Location: [${_driver1.x}, ${_driver1.z}]");
       });
     });
-  }
-
-  void _onMapCreated(GoogleMapController controller) {
-    mapController = controller;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community & Rally Map'),
+        title: const Text('Cyan Map'),
       ),
-      body: GoogleMap(
-        onMapCreated: _onMapCreated,
-        initialCameraPosition: CameraPosition(
-          target: _center,
-          zoom: 14.0,
-        ),
-        mapType: MapType.none, // Hide default base map to show OSM
-        tileOverlays: _tileOverlays,
-        markers: _markers,
-        circles: _circles,
+      body: GameWidget(
+        game: game,
+        overlayBuilderMap: {
+          'TextureOverlay': (BuildContext context, CyanMapGame game) {
+            return const FluorescentTextureOverlay(
+              textureId: 1,
+              width: 300,
+              height: 300,
+            );
+          },
+        },
+        initialActiveOverlays: const ['TextureOverlay'],
       ),
     );
   }
 }
 
-class _OSMTileProvider implements TileProvider {
+class CyanMapGame extends FlameGame {
+  late ThirdPersonCamera camera3d;
+  bool isTransitioning = false;
+  double targetFov = 20.0;
+
   @override
-  Future<Tile> getTile(int x, int y, int? zoom) async {
-    // Stub OSM Tile Provider
-    return Tile(0, 0, null);
+  Future<void> onLoad() async {
+    // Load a 3D world that will serve as the globe / environment
+    final world3d = await World3D.load('assets/worlds/demo.fworld');
+
+    // Start with a zoomed-out globe view (large FOV or zoomed out position)
+    camera3d = ThirdPersonCamera(fov: 60, near: 0.1, far: 1000);
+
+    add(FluorescentViewport(
+      world: world3d,
+      camera: camera3d,
+      textureId: 1,
+      position: Vector2(0, 0),
+      size: Vector2(400, 800), // Approximate phone size
+    ));
+
+    // Render 2D UI overlays on top of the 3D map
+    add(
+      TextComponent(
+        text: 'Rendering globe showing stars and SpaceX missions...',
+        position: Vector2(10, 10),
+      ),
+    );
+
+    // Simulate clicking to transition to street level
+    Future.delayed(const Duration(seconds: 3), () {
+      isTransitioning = true;
+    });
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (isTransitioning) {
+      if (camera3d.fov > targetFov) {
+        camera3d.fov -= dt * 10;
+      } else {
+        isTransitioning = false;
+        debugPrint("Rendering street level plot");
+      }
+    }
   }
 }

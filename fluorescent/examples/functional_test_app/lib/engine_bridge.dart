@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -134,7 +133,7 @@ class FluoriteEngineBridge {
     final bool isInside = distSq <= (radius * radius);
 
     // Simulate sending telemetry to nexus-core when location is checked
-    sendTelemetry("Checked Geofence: ${lat}, ${lng}");
+    sendTelemetry("Checked Geofence: $lat, $lng");
 
     return isInside;
   }

@@ -28,19 +28,28 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  flame: ^1.38.2
+  fluorescent_flame:
+    path: ../../packages/fluorescent_flame
+  fluorescent_vulkan:
+    path: ../../packages/fluorescent_vulkan
   flutter:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  google_maps_flutter: ^2.18.1
   fluorescent_core:
     path: ../../packages/fluorescent_core
   http: ^1.6.0
   web_socket_channel: ^3.0.3
 
 dev_dependencies:
+
+
+
+
+
   flutter_test:
     sdk: flutter
 
