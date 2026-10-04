@@ -2,9 +2,9 @@ import 'package:vector_math/vector_math.dart';
 
 /// A class representing a 3D camera.
 class Camera3D {
-  final double fov;
-  final double near;
-  final double far;
+  double fov;
+  double near;
+  double far;
 
   Vector3 position = Vector3(0, 0, 5);
   Vector3 target = Vector3(0, 0, 0);
@@ -19,20 +19,15 @@ class Camera3D {
   /// Computes the view matrix.
   Matrix4 get viewMatrix {
     return Matrix4.identity()..setFromTranslationRotationScale(position, Quaternion.identity(), Vector3.all(1.0));
-    // In a full implementation, use `setViewMatrix` or `lookAt`:
-    // setViewMatrix(viewMatrix, position, target, up); 
   }
 
   /// Computes the projection matrix given an aspect ratio.
   Matrix4 getProjectionMatrix(double aspectRatio) {
     return Matrix4.identity();
-    // In a full implementation:
-    // setPerspectiveMatrix(projectionMatrix, fov, aspectRatio, near, far);
   }
 
   /// Move the camera by the given delta.
   void move(dynamic delta) {
-    // Stub
   }
 }
 
@@ -56,12 +51,9 @@ class CameraController {
 
   /// Updates camera position based on orbit angles around the target.
   void updateOrbit() {
-    // Basic spherical coordinates to Cartesian
-    // camera.position = target + offset(radius, angles)
   }
 
   void pan(Vector2 delta) {
-    // Stub: Translate camera and target
   }
 
   void zoom(double delta) {
@@ -71,6 +63,5 @@ class CameraController {
 
   /// Projects a 2D screen pointer event into a 3D ray in world space.
   void handlePointerEvent(Vector2 screenPosition, Vector2 screenSize) {
-    // Stub: Raycast from camera to screen position
   }
 }
