@@ -5,6 +5,7 @@ import 'package:fluorescent_core/fluorescent_core.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:fluorescent_flame/fluorescent_flame.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'engine_bridge.dart';
 import 'main_nav.dart';
 
@@ -46,10 +47,18 @@ class _MapScreenState extends State<MapScreen> {
   final Vector3 _driver1 = Vector3(0.0, 0.0, 0.0);
   final Vector3 _driver2 = Vector3(10.0, 0.0, 10.0);
 
+  bool showGoogleMap = false;
+
   @override
   void initState() {
     super.initState();
     game = CyanMapGame();
+    game.onTransitionComplete = () {
+      if (!mounted) return;
+      setState(() {
+        showGoogleMap = true;
+      });
+    };
     _startMockLocationUpdates();
   }
 
@@ -83,19 +92,26 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: const Text('Cyan Map'),
       ),
-      body: GameWidget(
-        game: game,
-        overlayBuilderMap: {
-          'TextureOverlay': (BuildContext context, CyanMapGame game) {
-            return const FluorescentTextureOverlay(
-              textureId: 1,
-              width: 300,
-              height: 300,
-            );
-          },
-        },
-        initialActiveOverlays: const ['TextureOverlay'],
-      ),
+      body: showGoogleMap
+          ? const GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(37.42796133580664, -122.085749655962),
+                zoom: 14.4746,
+              ),
+            )
+          : GameWidget(
+              game: game,
+              overlayBuilderMap: {
+                'TextureOverlay': (BuildContext context, CyanMapGame game) {
+                  return const FluorescentTextureOverlay(
+                    textureId: 1,
+                    width: 300,
+                    height: 300,
+                  );
+                },
+              },
+              initialActiveOverlays: const ['TextureOverlay'],
+            ),
     );
   }
 }
@@ -104,6 +120,7 @@ class CyanMapGame extends FlameGame {
   late ThirdPersonCamera camera3d;
   bool isTransitioning = false;
   double targetFov = 20.0;
+  VoidCallback? onTransitionComplete;
 
   @override
   Future<void> onLoad() async {
@@ -144,6 +161,7 @@ class CyanMapGame extends FlameGame {
       } else {
         isTransitioning = false;
         debugPrint("Rendering street level plot");
+        onTransitionComplete?.call();
       }
     }
   }
