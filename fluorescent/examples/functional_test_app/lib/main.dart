@@ -42,10 +42,12 @@ class _MapScreenState extends State<MapScreen> {
   final Random _random = Random();
   dart_async.Timer? _mockLocationTimer;
   late final CyanMapGame game;
+  GoogleMapController? _mapController;
 
   // Driver Locations
-  final Vector3 _driver1 = Vector3(0.0, 0.0, 0.0);
-  final Vector3 _driver2 = Vector3(10.0, 0.0, 10.0);
+  // Base coordinates near Googleplex for visible tracking
+  final Vector3 _driver1 = Vector3(37.42796133580664, 0.0, -122.085749655962);
+  final Vector3 _driver2 = Vector3(37.42896133580664, 0.0, -122.086749655962);
 
   bool showGoogleMap = false;
 
@@ -73,15 +75,21 @@ class _MapScreenState extends State<MapScreen> {
     _mockLocationTimer = dart_async.Timer.periodic(const Duration(milliseconds: 500), (timer) {
       if (!mounted) return;
       setState(() {
-        _driver1.x += (_random.nextDouble() - 0.5) * 0.1;
-        _driver1.z += (_random.nextDouble() - 0.5) * 0.1;
+        _driver1.x += (_random.nextDouble() - 0.5) * 0.001;
+        _driver1.z += (_random.nextDouble() - 0.5) * 0.001;
 
-        _driver2.x += (_random.nextDouble() - 0.5) * 0.1;
-        _driver2.z += (_random.nextDouble() - 0.5) * 0.1;
+        _driver2.x += (_random.nextDouble() - 0.5) * 0.001;
+        _driver2.z += (_random.nextDouble() - 0.5) * 0.001;
 
         // FFI Bridge Check - Send Telemetry to Cyan Network
         final engine = FluoriteEngineBridge();
         engine.sendTelemetry("Driver Location: [${_driver1.x}, ${_driver1.z}]");
+
+        if (showGoogleMap && _mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(LatLng(_driver1.x, _driver1.z)),
+          );
+        }
       });
     });
   }
@@ -93,11 +101,27 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Cyan Map'),
       ),
       body: showGoogleMap
-          ? const GoogleMap(
+          ? GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: LatLng(37.42796133580664, -122.085749655962),
+                target: LatLng(_driver1.x, _driver1.z),
                 zoom: 14.4746,
               ),
+              onMapCreated: (GoogleMapController controller) {
+                _mapController = controller;
+              },
+              markers: {
+                Marker(
+                  markerId: const MarkerId('driver1'),
+                  position: LatLng(_driver1.x, _driver1.z),
+                  infoWindow: const InfoWindow(title: 'Node 1 (Logistics)'),
+                ),
+                Marker(
+                  markerId: const MarkerId('driver2'),
+                  position: LatLng(_driver2.x, _driver2.z),
+                  infoWindow: const InfoWindow(title: 'Node 2 (Logistics)'),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                ),
+              },
             )
           : GameWidget(
               game: game,
