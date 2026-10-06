@@ -6,12 +6,38 @@ class GraphSerialization {
   static String toJson(NodeGraph graph) {
     final Map<String, dynamic> data = {
       'nodes': graph.nodes
-          .map((node) => {
-                'id': node.id,
-                'name': node.name,
-                'type': node.type,
-                'position': {'x': node.position.dx, 'y': node.position.dy},
-                'properties': node.properties,
+          .map((node) {
+                final Map<String, dynamic> baseData = {
+                  'id': node.id,
+                  'name': node.name,
+                  'type': node.type,
+                  'position': {'x': node.position.dx, 'y': node.position.dy},
+                  'properties': node.properties,
+                };
+
+                if (node.type == 'MobileOptimizedTerrainPCG') {
+                  final biomeScale = (node.properties['biome_scale'] as num?)?.toDouble() ?? 1.0;
+                  final density = (node.properties['density'] as num?)?.toDouble() ?? 1.0;
+                  final seed = (node.properties['seed'] as num?)?.toInt() ?? 0;
+
+                  baseData['engine_payload'] = {
+                    'config': {
+                      'biome_scale': biomeScale,
+                      'density': density,
+                    },
+                    'seed': seed,
+                  };
+                } else if (node.type == 'HalfPrecisionVFX') {
+                  final maxParticles = (node.properties['max_particles'] as num?)?.toInt() ?? 1000;
+                  final emitRate = (node.properties['emit_rate'] as num?)?.toDouble() ?? 100.0;
+
+                  baseData['engine_payload'] = {
+                    'max_particles': maxParticles,
+                    'emit_rate': emitRate,
+                  };
+                }
+
+                return baseData;
               })
           .toList(),
       'connections': graph.connections
@@ -86,6 +112,8 @@ class GraphSerialization {
             print('Emitting PCG payload: ${jsonEncode(pcgPayload)}');
             break;
           case 'HalfPrecisionVFX':
+            // Match previous node mapping for backwards compatibility of fromJson print simulation
+            // In the initial file it mapped spawn_rate, gravity, lifetime, color
             final spawnRate = (node.properties['spawn_rate'] as num?)?.toDouble() ?? 100.0;
             final gravity = (node.properties['gravity'] as num?)?.toDouble() ?? -9.81;
             final lifetime = (node.properties['lifetime'] as num?)?.toDouble() ?? 5.0;
