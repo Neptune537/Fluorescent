@@ -65,12 +65,17 @@ impl TemporalUpscalingContext {
                 // Perform a simple blit or no-op if render == display size
             }
             UpscalerType::TAA => {
-                // Execute standard TAA history resolve shader
+                // AGENT 1 TODO: Execute standard TAA history resolve shader
+                // 1. Bind the current frame color buffer and the history buffer.
+                // 2. Bind the motion vectors buffer.
+                // 3. Dispatch the TAA compute shader to blend the frames based on motion and neighborhood clamping.
+                // 4. Update the history buffer with the resolved frame.
             }
             UpscalerType::FSR2 => {
-                // 1. Transition color, depth, and velocity buffers to appropriate layouts
-                // 2. Pass jitter offset and camera settings to the FSR2 API
-                // 3. Dispatch the FSR2 compute shaders
+                // AGENT 1 TODO: FSR2 Integration
+                // 1. Update FSR2 dispatch description parameters (jitter offset, camera settings, exposure).
+                // 2. Bind depth, motion vectors, and color buffers to the FSR2 context.
+                // 3. Dispatch the FSR2 compute shaders to perform temporal upscaling.
             }
             UpscalerType::DLSS => {
                 // 1. Transition buffers

@@ -17,6 +17,10 @@ impl PcgSystem {
     }
 
     pub fn generate_chunk(&self, _chunk_x: i32, _chunk_z: i32, _config: &PcgConfig) {
-        // TODO: Procedural terrain and entity generation per chunk
+        // AGENT 3 TODO: Procedural Content Generation
+        // 1. Calculate the world coordinates for the chunk based on `_chunk_x` and `_chunk_z`.
+        // 2. Sample 2D/3D Perlin or Simplex noise using `self.seed` and `_config.biome_scale` to generate a heightmap.
+        // 3. Generate terrain mesh geometry based on the heightmap.
+        // 4. Use Poisson Disk Sampling or similar scatter algorithms based on `_config.density` to spawn vegetation/rock entities via the ECS.
     }
 }
