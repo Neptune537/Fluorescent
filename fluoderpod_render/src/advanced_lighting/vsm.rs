@@ -110,19 +110,24 @@ impl VirtualShadowMapSystem {
 
     pub fn execute(&self, encoder: &mut wgpu::CommandEncoder) {
         // 1. Allocate physical pages in the `physical_atlas` based on the camera frustum and light direction.
-        // Here we simulate page allocation logic.
         let mut allocated_pages = Vec::new();
-        for i in 0..self.config.max_pages.min(64) {
-            // Allocate a page at a dummy coordinate
-            allocated_pages.push([i, i, 0, 0]);
+        let num_physical_pages = self.config.atlas_size_pages * self.config.atlas_size_pages;
+        let num_pages_to_allocate = self.config.max_pages.min(num_physical_pages);
+        for i in 0..num_pages_to_allocate {
+            // Compute page coordinates in the physical atlas (e.g., 8x8 grid)
+            let page_x = i % self.config.atlas_size_pages;
+            let page_y = i / self.config.atlas_size_pages;
+            allocated_pages.push([page_x, page_y]);
         }
 
         // 2. Update the `page_table_buffer` to map virtual memory pages to physical atlas coordinates.
-        // Convert page table data to byte array for updating
-        let mut page_table_data = Vec::with_capacity((self.config.max_pages as usize) * 4);
+        let mut page_table_data = Vec::with_capacity(self.config.max_pages as usize);
         for i in 0..self.config.max_pages {
             if (i as usize) < allocated_pages.len() {
-                page_table_data.push(i); // mapped
+                let [px, py] = allocated_pages[i as usize];
+                // Pack physical coordinates (x, y) into a u32 (16 bits each)
+                let packed = (px & 0xFFFF) | ((py & 0xFFFF) << 16);
+                page_table_data.push(packed); // mapped
             } else {
                 page_table_data.push(u32::MAX); // unmapped
             }
@@ -149,9 +154,7 @@ impl VirtualShadowMapSystem {
         );
 
         // 3. Dispatch shadow rendering compute or render passes to write depth into the physical atlas.
-        // Note: Ensure bounds checking against config.max_pages.
-        // For scaffolding, we begin a render pass that clears the atlas
-        let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("VSM Shadow Rendering Pass"),
             color_attachments: &[],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
@@ -165,5 +168,25 @@ impl VirtualShadowMapSystem {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
+
+        // Set viewport and scissor for each allocated page to render shadows only into the allocated regions
+        for (_i, &[px, py]) in allocated_pages.iter().enumerate() {
+            let res = self.config.resolution_per_page as f32;
+            render_pass.set_viewport(
+                px as f32 * res,
+                py as f32 * res,
+                res,
+                res,
+                0.0,
+                1.0,
+            );
+            render_pass.set_scissor_rect(
+                px * self.config.resolution_per_page,
+                py * self.config.resolution_per_page,
+                self.config.resolution_per_page,
+                self.config.resolution_per_page,
+            );
+            // Draw call would go here
+        }
     }
 }
