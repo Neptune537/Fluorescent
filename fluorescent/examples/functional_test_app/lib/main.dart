@@ -8,6 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'engine_bridge.dart';
 import 'main_nav.dart';
+import 'geofencing.dart';
+import 'background_location.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +45,8 @@ class _MapScreenState extends State<MapScreen> {
   bool isPhantom = true;
   double _lat = 37.4220;
   double _lng = -122.0841;
-  dart_async.StreamSubscription<Position>? _positionStream;
+  dart_async.StreamSubscription<Position>? _positionSubscription;
+  final BackgroundLocationService _backgroundService = BackgroundLocationService();
 
   @override
   void initState() {
@@ -54,65 +57,31 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    _positionStream?.cancel();
+    _positionSubscription?.cancel();
     super.dispose();
   }
 
   Future<void> _initLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    await _backgroundService.startService();
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
-
-    // Get initial position
-    try {
-      final position = await Geolocator.getCurrentPosition();
+    if (_backgroundService.lastPosition != null) {
       if (mounted) {
         setState(() {
-          _lat = position.latitude;
-          _lng = position.longitude;
+          _lat = _backgroundService.lastPosition!.latitude;
+          _lng = _backgroundService.lastPosition!.longitude;
           isPhantom = false;
         });
       }
-    } catch (_) {
-      // Fallback to default
     }
 
-    // Listen for updates
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // update every 10 meters
-    );
-
-    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-      (Position position) {
-        if (!mounted) return;
-        setState(() {
-          _lat = position.latitude;
-          _lng = position.longitude;
-          isPhantom = false;
-        });
-
-        // Send telemetry to the Cyan Network for multiplayer syncing
-        final engine = FluoriteEngineBridge();
-        engine.sendTelemetry("Player Location: [$_lat, $_lng]");
-      },
-    );
+    _positionSubscription = _backgroundService.positionStream.listen((Position position) {
+      if (!mounted) return;
+      setState(() {
+        _lat = position.latitude;
+        _lng = position.longitude;
+        isPhantom = false;
+      });
+    });
   }
 
   void _shareLocation() async {
@@ -188,6 +157,11 @@ class _MapScreenState extends State<MapScreen> {
               },
             },
             initialActiveOverlays: const ['TextureOverlay'],
+          ),
+
+          // Geofencing Visual Overlay
+          const Positioned.fill(
+            child: GeofencingOverlay(),
           ),
 
           // UI Overlays for logistics and GPS details
