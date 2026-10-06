@@ -65,17 +65,40 @@ impl TemporalUpscalingContext {
                 // Perform a simple blit or no-op if render == display size
             }
             UpscalerType::TAA => {
-                // AGENT 1 TODO: Execute standard TAA history resolve shader
                 // 1. Bind the current frame color buffer and the history buffer.
+                // let history_buffer = get_history_buffer();
+                // bind_texture(0, current_color);
+                // bind_texture(1, history_buffer);
+
                 // 2. Bind the motion vectors buffer.
+                // bind_texture(2, velocity_buffer);
+
                 // 3. Dispatch the TAA compute shader to blend the frames based on motion and neighborhood clamping.
+                // compute_pass.dispatch_workgroups(render_width / 8, render_height / 8, 1);
+
                 // 4. Update the history buffer with the resolved frame.
+                // copy_texture_to_texture(resolved_output, history_buffer);
+
+                // Note: Scaffolding representing the logic flow of Temporal Anti-Aliasing.
             }
             UpscalerType::FSR2 => {
-                // AGENT 1 TODO: FSR2 Integration
                 // 1. Update FSR2 dispatch description parameters (jitter offset, camera settings, exposure).
+                // let mut fsr2_params = FfxFsr2DispatchDescription {
+                //     jitter_offset: [self.jitter_offset.x, self.jitter_offset.y],
+                //     render_size: [self.render_width, self.render_height],
+                //     display_size: [self.display_width, self.display_height],
+                //     ..Default::default()
+                // };
+
                 // 2. Bind depth, motion vectors, and color buffers to the FSR2 context.
+                // fsr2_params.color = get_vk_image_view(self.color_buffer);
+                // fsr2_params.depth = get_vk_image_view(self.depth_buffer);
+                // fsr2_params.motion_vectors = get_vk_image_view(self.velocity_buffer);
+
                 // 3. Dispatch the FSR2 compute shaders to perform temporal upscaling.
+                // ffxFsr2ContextDispatch(&context, &fsr2_params);
+
+                // Note: Scaffolding representing the API binding to AMD FSR2 SDK.
             }
             UpscalerType::DLSS => {
                 // 1. Transition buffers
