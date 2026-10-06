@@ -4,6 +4,26 @@ import 'package:geolocator/geolocator.dart';
 import 'engine_bridge.dart';
 import 'background_location.dart';
 
+enum ZoneType { event, speedTrap }
+
+class GeofenceZone {
+  final String id;
+  final double lat;
+  final double lng;
+  final double radius;
+  final ZoneType type;
+  bool isInside;
+
+  GeofenceZone({
+    required this.id,
+    required this.lat,
+    required this.lng,
+    required this.radius,
+    required this.type,
+    this.isInside = false,
+  });
+}
+
 class GeofencingOverlay extends StatefulWidget {
   const GeofencingOverlay({super.key});
 
@@ -15,11 +35,22 @@ class _GeofencingOverlayState extends State<GeofencingOverlay> {
   StreamSubscription<Position>? _positionSubscription;
   Position? _currentPosition;
 
-  // Dummy geofence zone
-  final double zoneLat = 37.4220;
-  final double zoneLng = -122.0841;
-  final double zoneRadius = 0.002;
-  bool _isInsideZone = false;
+  final List<GeofenceZone> _zones = [
+    GeofenceZone(
+      id: "ZoneA",
+      lat: 37.4220,
+      lng: -122.0841,
+      radius: 0.002,
+      type: ZoneType.event,
+    ),
+    GeofenceZone(
+      id: "SpeedTrap1",
+      lat: 37.4200,
+      lng: -122.0800,
+      radius: 0.001,
+      type: ZoneType.speedTrap,
+    ),
+  ];
 
   @override
   void initState() {
@@ -43,23 +74,26 @@ class _GeofencingOverlayState extends State<GeofencingOverlay> {
 
     final bridge = FluoriteEngineBridge();
 
-    // Implement math to detect boundary crossings (simple radius distance)
-    // We calculate distance using Geolocator.distanceBetween which gives distance in meters.
-    // The dummy zoneRadius is 0.002 roughly degrees. 1 degree is ~111km, so 0.002 degrees is ~222 meters.
-    final double radiusInMeters = zoneRadius * 111000.0;
-    final double distanceInMeters = Geolocator.distanceBetween(
-      position.latitude, position.longitude, zoneLat, zoneLng
-    );
+    for (var zone in _zones) {
+      final double radiusInMeters = zone.radius * 111000.0;
+      final double distanceInMeters = Geolocator.distanceBetween(
+        position.latitude, position.longitude, zone.lat, zone.lng
+      );
 
-    final bool isNowInside = distanceInMeters <= radiusInMeters;
+      final bool isNowInside = distanceInMeters <= radiusInMeters;
 
-    if (isNowInside && !_isInsideZone) {
-      bridge.sendTelemetry("GeofenceEvent:Enter:ZoneA");
-    } else if (!isNowInside && _isInsideZone) {
-      bridge.sendTelemetry("GeofenceEvent:Exit:ZoneA");
+      if (isNowInside && !zone.isInside) {
+        bridge.sendTelemetry("GeofenceEvent:Enter:${zone.id}");
+      } else if (!isNowInside && zone.isInside) {
+        bridge.sendTelemetry("GeofenceEvent:Exit:${zone.id}");
+      }
+
+      zone.isInside = isNowInside;
+
+      bridge.checkGeofenceIntersection(
+        position.latitude, position.longitude, zone.lat, zone.lng, zone.radius
+      );
     }
-
-    _isInsideZone = isNowInside;
   }
 
   @override
@@ -75,10 +109,7 @@ class _GeofencingOverlayState extends State<GeofencingOverlay> {
         size: Size.infinite,
         painter: _GeofencePainter(
           currentPosition: _currentPosition,
-          zoneLat: zoneLat,
-          zoneLng: zoneLng,
-          zoneRadius: zoneRadius,
-          isInsideZone: _isInsideZone,
+          zones: _zones,
         ),
       ),
     );
@@ -87,64 +118,75 @@ class _GeofencingOverlayState extends State<GeofencingOverlay> {
 
 class _GeofencePainter extends CustomPainter {
   final Position? currentPosition;
-  final double zoneLat;
-  final double zoneLng;
-  final double zoneRadius;
-  final bool isInsideZone;
+  final List<GeofenceZone> zones;
 
   _GeofencePainter({
     required this.currentPosition,
-    required this.zoneLat,
-    required this.zoneLng,
-    required this.zoneRadius,
-    required this.isInsideZone,
+    required this.zones,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // A simple visual representation of geofencing logic
-    // In a real map view, we would project lat/lng to screen coordinates.
-    // Here we just draw a static representation of the zone and user.
-
-    final paintZone = Paint()
-      ..color = isInsideZone ? Colors.red.withValues(alpha: 0.3) : Colors.blue.withValues(alpha: 0.3)
-      ..style = PaintingStyle.fill;
-
-    final paintZoneBorder = Paint()
-      ..color = isInsideZone ? Colors.red : Colors.blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    // Draw Zone at center of screen for visualization
     final center = Offset(size.width / 2, size.height / 2);
-    // arbitrary scale for visualization
     final radiusScreen = size.width * 0.3;
 
-    canvas.drawCircle(center, radiusScreen, paintZone);
-    canvas.drawCircle(center, radiusScreen, paintZoneBorder);
-
-    // Draw user location
     if (currentPosition != null) {
-      // Very naive mapping of coordinates to screen
-      final latDiff = currentPosition!.latitude - zoneLat;
-      final lngDiff = currentPosition!.longitude - zoneLng;
+      for (var zone in zones) {
+        Color baseColor = zone.type == ZoneType.speedTrap ? Colors.orange : Colors.blue;
+        Color zoneColor = zone.isInside ? Colors.red : baseColor;
 
-      final userOffset = Offset(
-        center.dx + (lngDiff / zoneRadius) * radiusScreen,
-        center.dy - (latDiff / zoneRadius) * radiusScreen,
-      );
+        final paintZone = Paint()
+          ..color = zoneColor.withValues(alpha: 0.3)
+          ..style = PaintingStyle.fill;
+
+        final paintZoneBorder = Paint()
+          ..color = zoneColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+
+        final latDiff = currentPosition!.latitude - zone.lat;
+        final lngDiff = currentPosition!.longitude - zone.lng;
+
+        // Use base zone radius 0.002 as the normalization factor for visual rendering
+        final zoneOffset = Offset(
+          center.dx - (lngDiff / 0.002) * radiusScreen,
+          center.dy + (latDiff / 0.002) * radiusScreen,
+        );
+
+        final zoneDrawRadius = (zone.radius / 0.002) * radiusScreen;
+
+        canvas.drawCircle(zoneOffset, zoneDrawRadius, paintZone);
+        canvas.drawCircle(zoneOffset, zoneDrawRadius, paintZoneBorder);
+      }
 
       final paintUser = Paint()
         ..color = Colors.green
         ..style = PaintingStyle.fill;
 
-      canvas.drawCircle(userOffset, 10.0, paintUser);
+      canvas.drawCircle(center, 10.0, paintUser);
+    } else {
+      // Just draw the zones at the center if no user position
+      for (var zone in zones) {
+        Color baseColor = zone.type == ZoneType.speedTrap ? Colors.orange : Colors.blue;
+
+        final paintZone = Paint()
+          ..color = baseColor.withValues(alpha: 0.3)
+          ..style = PaintingStyle.fill;
+
+        final paintZoneBorder = Paint()
+          ..color = baseColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+
+        final zoneDrawRadius = (zone.radius / 0.002) * radiusScreen;
+        canvas.drawCircle(center, zoneDrawRadius, paintZone);
+        canvas.drawCircle(center, zoneDrawRadius, paintZoneBorder);
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant _GeofencePainter oldDelegate) {
-    return currentPosition != oldDelegate.currentPosition ||
-           isInsideZone != oldDelegate.isInsideZone;
+    return currentPosition != oldDelegate.currentPosition;
   }
 }
