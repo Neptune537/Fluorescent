@@ -40,6 +40,26 @@ impl ReplicationSystem {
         Self { mesh_node }
     }
 
+    pub fn get_visible_entities(world: &EngineWorld, viewer_position: [f32; 3], radius_sq: f32) -> Vec<hecs::Entity> {
+        let mut visible = Vec::new();
+        for (entity, transform) in world.ecs.query::<&TransformComponent>().iter() {
+            let pos_x = transform.matrix[12];
+            let pos_y = transform.matrix[13];
+            let pos_z = transform.matrix[14];
+
+            let dx = pos_x - viewer_position[0];
+            let dy = pos_y - viewer_position[1];
+            let dz = pos_z - viewer_position[2];
+
+            let dist_sq = dx * dx + dy * dy + dz * dz;
+
+            if dist_sq <= radius_sq {
+                visible.push(entity);
+            }
+        }
+        visible
+    }
+
     pub fn broadcast_world_state(&self, world: &mut EngineWorld) {
         let mut viewer_position = [0.0, 0.0, 0.0];
         let visible_radius = 500.0;
@@ -57,25 +77,19 @@ impl ReplicationSystem {
 
         let mut updates = Vec::new();
 
-        for (entity, (transform, phys)) in world.ecs.query::<(&TransformComponent, &PhysicsComponent)>().iter() {
-            let pos_x = transform.matrix[12];
-            let pos_y = transform.matrix[13];
-            let pos_z = transform.matrix[14];
+        let visible_entities = Self::get_visible_entities(world, viewer_position, radius_sq);
 
-            let dx = pos_x - viewer_position[0];
-            let dy = pos_y - viewer_position[1];
-            let dz = pos_z - viewer_position[2];
-
-            let dist_sq = dx * dx + dy * dy + dz * dz;
-
-            if dist_sq <= radius_sq {
-                updates.push(EntityStateUpdate {
-                    entity_id: entity.to_bits(),
-                    timestamp: current_time,
-                    transform: Some(*transform),
-                    physics: Some(*phys),
-                    velocity: None,
-                });
+        for entity in visible_entities {
+            if let Ok(transform) = world.ecs.get::<TransformComponent>(entity) {
+                if let Ok(phys) = world.ecs.get::<PhysicsComponent>(entity) {
+                    updates.push(EntityStateUpdate {
+                        entity_id: entity.to_bits(),
+                        timestamp: current_time,
+                        transform: Some(*transform),
+                        physics: Some(*phys),
+                        velocity: None,
+                    });
+                }
             }
         }
 
@@ -141,12 +155,6 @@ impl ReplicationSystem {
     }
 
     pub fn apply_network_interpolation(world: &mut EngineWorld) {
-        // AGENT 4 TODO: Client-Side Interpolation/Extrapolation
-        // 1. Calculate the delta time since `interp.start_time`.
-        // 2. If delta is within the typical tick rate (e.g., 33ms for 30Hz), interpolate between `start_transform` and `target_transform`.
-        // 3. If delta exceeds the tick rate (packet loss/lag), extrapolate the position using velocity/target direction.
-        // 4. Update the `transform` directly to smooth visual movement.
-
         let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
         for (_entity, (transform, interp)) in world.ecs.query_mut::<(&mut TransformComponent, &NetworkInterpolationComponent)>() {
             if interp.target_time <= interp.start_time {
@@ -154,11 +162,12 @@ impl ReplicationSystem {
                 continue;
             }
 
-            let t = (current_time - interp.start_time) / (interp.target_time - interp.start_time);
+            let delta_time = current_time - interp.start_time;
+            let tick_rate = interp.target_time - interp.start_time;
 
-            if t <= 1.0 {
-                let t_clamped = t.clamp(0.0, 1.0) as f32;
-
+            if delta_time <= tick_rate {
+                // Interpolate
+                let t = (delta_time / tick_rate).clamp(0.0, 1.0) as f32;
                 let mut new_matrix = interp.start_transform.matrix;
 
                 let start_pos = [
@@ -173,19 +182,19 @@ impl ReplicationSystem {
                     interp.target_transform.matrix[14]
                 ];
 
-                new_matrix[12] = start_pos[0] + (target_pos[0] - start_pos[0]) * t_clamped;
-                new_matrix[13] = start_pos[1] + (target_pos[1] - start_pos[1]) * t_clamped;
-                new_matrix[14] = start_pos[2] + (target_pos[2] - start_pos[2]) * t_clamped;
+                new_matrix[12] = start_pos[0] + (target_pos[0] - start_pos[0]) * t;
+                new_matrix[13] = start_pos[1] + (target_pos[1] - start_pos[1]) * t;
+                new_matrix[14] = start_pos[2] + (target_pos[2] - start_pos[2]) * t;
 
                 transform.matrix = new_matrix;
             } else {
+                // Extrapolate
                 if let Some(vel) = interp.velocity {
-                    let extrapolation_time = (current_time - interp.target_time) as f32;
+                    let extrapolation_time = (delta_time - tick_rate) as f32;
                     let max_extrapolation = 0.5;
                     let time_to_extrapolate = extrapolation_time.min(max_extrapolation);
 
                     let mut new_matrix = interp.target_transform.matrix;
-
                     let target_pos = [
                         interp.target_transform.matrix[12],
                         interp.target_transform.matrix[13],
