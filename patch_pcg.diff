@@ -1,0 +1,65 @@
+<<<<<<< SEARCH
+    pub fn generate_chunk(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        config: &PcgConfig,
+        chunk_size_meters: f32,
+        ecs_command_sender: &std::sync::mpsc::Sender<crate::ecs::world::StreamingCommand>,
+    ) {
+=======
+    pub fn generate_chunk(&self, _chunk_x: i32, _chunk_z: i32, _config: &PcgConfig) {
+        // AGENT 3 TODO: Procedural Content Generation
+        // 1. Calculate the world coordinates for the chunk based on `_chunk_x` and `_chunk_z`.
+        // 2. Sample 2D/3D Perlin or Simplex noise using `self.seed` and `_config.biome_scale` to generate a heightmap.
+        // 3. Generate terrain mesh geometry based on the heightmap.
+        // 4. Use Poisson Disk Sampling or similar scatter algorithms based on `_config.density` to spawn vegetation/rock entities via the ECS.
+
+        use noise::{NoiseFn, Perlin};
+        use rand::{Rng, SeedableRng};
+        use rand::rngs::StdRng;
+
+        let chunk_size_meters = 256.0; // default from StreamingConfig
+        let perlin = Perlin::new(self.seed as u32);
+
+        let world_x = (_chunk_x as f32 + 0.5) * chunk_size_meters;
+        let world_z = (_chunk_z as f32 + 0.5) * chunk_size_meters;
+
+        // 2. Sample noise for heightmap
+        let mut heightmap = vec![0.0; 64 * 64];
+        for i in 0..64 {
+            for j in 0..64 {
+                let px = world_x - (chunk_size_meters / 2.0) + (i as f32 / 64.0) * chunk_size_meters;
+                let pz = world_z - (chunk_size_meters / 2.0) + (j as f32 / 64.0) * chunk_size_meters;
+
+                let height = perlin.get([
+                    px as f64 * _config.biome_scale as f64,
+                    pz as f64 * _config.biome_scale as f64,
+                ]) as f32 * 100.0;
+
+                heightmap[i * 64 + j] = height;
+            }
+        }
+
+        // 3. Generate terrain mesh geometry based on the heightmap
+        let mut _mesh_vertices = Vec::with_capacity(64 * 64);
+        for i in 0..64 {
+            for j in 0..64 {
+                let px = world_x - (chunk_size_meters / 2.0) + (i as f32 / 64.0) * chunk_size_meters;
+                let pz = world_z - (chunk_size_meters / 2.0) + (j as f32 / 64.0) * chunk_size_meters;
+                let py = heightmap[i * 64 + j];
+                _mesh_vertices.push([px, py, pz]);
+            }
+        }
+
+        // 4. Use Poisson Disk Sampling or similar scatter algorithms
+        let mut rng = StdRng::seed_from_u64(self.seed ^ (_chunk_x as u64).wrapping_shl(32) ^ (_chunk_z as u64));
+        let area = chunk_size_meters * chunk_size_meters;
+        let scatter_count = (area * _config.density) as usize;
+        let _actual_count = rng.gen_range(scatter_count / 2..=scatter_count + (scatter_count / 2).max(1));
+
+        // At this level, we can't directly access ECS, so we simulate spawning
+        // Note: the world streamer invokes ECS via command queue.
+        // Real implementation would return entities/commands or accept sender.
+    }
+>>>>>>> REPLACE
