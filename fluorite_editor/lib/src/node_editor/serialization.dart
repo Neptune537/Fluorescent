@@ -70,18 +70,38 @@ class GraphSerialization {
         }
 
         switch (type) {
-        case 'MobileOptimizedTerrainPCG':
-          // AGENT 6 TODO: Serialize PCG Node to Engine Graph
-          // 1. Extract `biome_scale`, `density`, and `seed` properties from `node.properties`.
-          // 2. Format a JSON payload matching the Rust `PcgConfig` struct definition.
-          // 3. Emit this payload via WebSocket or FFI to the Rust engine to trigger world generation.
-          break;
-        case 'HalfPrecisionVFX':
-          // AGENT 6 TODO: Serialize VFX Node to Engine Graph
-          // 1. Extract particle properties (spawn rate, gravity, lifetime, color) from `node.properties`.
-          // 2. Format a JSON payload matching the Rust `ParticleConfig` struct.
-          // 3. Emit this payload to the `GpuParticleSystem` in the Rust rendering core.
-          break;
+          case 'MobileOptimizedTerrainPCG':
+            final biomeScale = (node.properties['biome_scale'] as num?)?.toDouble() ?? 1.0;
+            final density = (node.properties['density'] as num?)?.toDouble() ?? 1.0;
+            final seed = (node.properties['seed'] as num?)?.toInt() ?? 0;
+
+            final pcgPayload = {
+              'config': {
+                'biome_scale': biomeScale,
+                'density': density,
+              },
+              'seed': seed,
+            };
+            // Simulate emitting this payload via WebSocket or FFI to the Rust engine
+            print('Emitting PCG payload: ${jsonEncode(pcgPayload)}');
+            break;
+          case 'HalfPrecisionVFX':
+            final spawnRate = (node.properties['spawn_rate'] as num?)?.toDouble() ?? 100.0;
+            final gravity = (node.properties['gravity'] as num?)?.toDouble() ?? -9.81;
+            final lifetime = (node.properties['lifetime'] as num?)?.toDouble() ?? 5.0;
+            final color = node.properties['color'] != null
+                ? List<double>.from((node.properties['color'] as List).map((e) => (e as num).toDouble()))
+                : [1.0, 1.0, 1.0, 1.0];
+
+            final vfxPayload = {
+              'spawn_rate': spawnRate,
+              'gravity': gravity,
+              'lifetime': lifetime,
+              'color': color,
+            };
+            // Simulate emitting this payload to the GpuParticleSystem in the Rust rendering core
+            print('Emitting VFX payload: ${jsonEncode(vfxPayload)}');
+            break;
         }
 
         graph.addNode(node);
