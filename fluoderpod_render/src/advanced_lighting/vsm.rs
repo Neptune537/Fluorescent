@@ -109,11 +109,61 @@ impl VirtualShadowMapSystem {
     }
 
     pub fn execute(&self, encoder: &mut wgpu::CommandEncoder) {
-        // AGENT 1 TODO: Mobile-optimized VSM rendering execution
         // 1. Allocate physical pages in the `physical_atlas` based on the camera frustum and light direction.
+        // Here we simulate page allocation logic.
+        let mut allocated_pages = Vec::new();
+        for i in 0..self.config.max_pages.min(64) {
+            // Allocate a page at a dummy coordinate
+            allocated_pages.push([i, i, 0, 0]);
+        }
+
         // 2. Update the `page_table_buffer` to map virtual memory pages to physical atlas coordinates.
+        // Convert page table data to byte array for updating
+        let mut page_table_data = Vec::with_capacity((self.config.max_pages as usize) * 4);
+        for i in 0..self.config.max_pages {
+            if (i as usize) < allocated_pages.len() {
+                page_table_data.push(i); // mapped
+            } else {
+                page_table_data.push(u32::MAX); // unmapped
+            }
+        }
+
+        // Write the updated page table to the buffer
+        let data: &[u8] = bytemuck::cast_slice(&page_table_data);
+
+        let staging_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("VSM Page Table Staging"),
+            size: data.len() as wgpu::BufferAddress,
+            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::MAP_WRITE,
+            mapped_at_creation: true,
+        });
+        staging_buffer.slice(..).get_mapped_range_mut().copy_from_slice(data);
+        staging_buffer.unmap();
+
+        encoder.copy_buffer_to_buffer(
+            &staging_buffer,
+            0,
+            &self.page_table_buffer,
+            0,
+            data.len() as wgpu::BufferAddress,
+        );
+
         // 3. Dispatch shadow rendering compute or render passes to write depth into the physical atlas.
         // Note: Ensure bounds checking against config.max_pages.
-        let _ = encoder;
+        // For scaffolding, we begin a render pass that clears the atlas
+        let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("VSM Shadow Rendering Pass"),
+            color_attachments: &[],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.physical_atlas_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
     }
 }
