@@ -16,10 +16,18 @@ impl PcgSystem {
         Self { seed }
     }
 
-    pub fn generate_chunk(&self, _chunk_x: i32, _chunk_z: i32, _config: &PcgConfig) {
+    pub fn generate_chunk(
+        &self,
+        _chunk_x: i32,
+        _chunk_z: i32,
+        _config: &PcgConfig,
+        command_sender: Option<std::sync::mpsc::Sender<crate::ecs::world::StreamingCommand>>,
+    ) {
         use noise::{NoiseFn, Perlin};
         use rand::{Rng, SeedableRng};
         use rand::rngs::StdRng;
+        use crate::ecs::world::StreamingCommand;
+        use crate::streaming::world_streamer::ChunkCoord;
 
         let chunk_size_meters = 256.0; // default from StreamingConfig
         let perlin = Perlin::new(self.seed as u32);
@@ -61,7 +69,9 @@ impl PcgSystem {
         let scatter_count = (area * _config.density) as usize;
         let _actual_count = rng.gen_range(scatter_count / 2..=scatter_count + (scatter_count / 2).max(1));
 
-        // Note: the world streamer invokes ECS via command queue.
-        // Real implementation would return entities/commands or accept sender.
+        if let Some(sender) = command_sender {
+            let coord = ChunkCoord::new(_chunk_x, _chunk_z);
+            let _ = sender.send(StreamingCommand::SpawnEntities(coord, _actual_count));
+        }
     }
 }

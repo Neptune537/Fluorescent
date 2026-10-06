@@ -181,11 +181,16 @@ impl WorldStreamingManager {
                         self.total_resident_bytes += chunk.asset_bytes;
                         self.current_io_transfers += 1;
 
-                        // Notify ECS to spawn entities for this chunk
-                        if let Some(sender) = &self.ecs_command_sender {
-                            // Let's pass the chunk coord and a simulated entity count (e.g. 1000 per chunk)
-                            let _ = sender.send(StreamingCommand::SpawnEntities(coord, 1000));
-                        }
+                        // Notify ECS to spawn entities for this chunk via PCG
+                        use crate::streaming::pcg::{PcgSystem, PcgConfig};
+                        let pcg = PcgSystem::new(42); // Default seed
+                        let config = PcgConfig { biome_scale: 0.05, density: 0.01 };
+                        pcg.generate_chunk(
+                            coord.x,
+                            coord.z,
+                            &config,
+                            self.ecs_command_sender.clone(),
+                        );
                     }
                 }
             }
