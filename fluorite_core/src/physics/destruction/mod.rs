@@ -1,22 +1,18 @@
-//! Advanced Animation & Destruction System (Phase 3)
-//!
 //! Handles runtime physics-driven destruction, chunk separation, and rigid body spawning.
 
 pub struct DestructionSystem;
 
-pub struct DestructibleComponent {
-    pub health: f32,
-    pub max_health: f32,
-    pub fracture_threshold: f32,
-    pub chunk_meshes: Vec<u64>, // IDs referencing mesh chunks
-}
-
 impl DestructionSystem {
     pub fn new() -> Self {
-        Self
+        Self {}
     }
 
-    pub fn update(&mut self, _delta_time: f32) {
-        // TODO: Evaluate damage impacts and spawn physics chunks
+    pub fn process_fracture(&mut self, _entity_id: u64, _impact_point: glam::Vec3, _force: f32) {
+        // AGENT 2 TODO: Implement Chaos-style Destruction
+        // 1. Check if the entity is destructible and if the impact `_force` exceeds its threshold.
+        // 2. Perform Voronoi 3D cellular fracture on the entity's mesh at the `_impact_point`.
+        // 3. Despawn the original entity.
+        // 4. Spawn new child entities for each fractured chunk, instantiating dynamic Rapier3D rigid bodies.
+        // 5. Apply outward impulse forces to the chunks to simulate the explosion/impact.
     }
 }

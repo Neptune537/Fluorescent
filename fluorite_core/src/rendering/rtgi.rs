@@ -112,4 +112,13 @@ impl RtgiPipeline {
     pub fn probe_count(&self) -> usize {
         self.probes.len()
     }
+
+    /// Dispatches the RTGI compute shader to update irradiance probes.
+    pub fn update_probes(&mut self, _tlas: &TlasInstance, _encoder: &mut wgpu::CommandEncoder) {
+        // AGENT 1 TODO: Dispatch RTGI compute shader
+        // 1. Trace `self.config.rays_per_pixel` rays from each probe position against the `_tlas`.
+        // 2. Accumulate incoming radiance based on max_bounces.
+        // 3. Project the accumulated radiance onto Spherical Harmonics (SH) coefficients.
+        // 4. Update the `sh_coefficients` for each probe in `self.probes` using temporal accumulation.
+    }
 }
