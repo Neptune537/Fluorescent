@@ -141,6 +141,12 @@ impl ReplicationSystem {
     }
 
     pub fn apply_network_interpolation(world: &mut EngineWorld) {
+        // AGENT 4 TODO: Client-Side Interpolation/Extrapolation
+        // 1. Calculate the delta time since `interp.start_time`.
+        // 2. If delta is within the typical tick rate (e.g., 33ms for 30Hz), interpolate between `start_transform` and `target_transform`.
+        // 3. If delta exceeds the tick rate (packet loss/lag), extrapolate the position using velocity/target direction.
+        // 4. Update the `transform` directly to smooth visual movement.
+
         let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
         for (_entity, (transform, interp)) in world.ecs.query_mut::<(&mut TransformComponent, &NetworkInterpolationComponent)>() {
             if interp.target_time <= interp.start_time {

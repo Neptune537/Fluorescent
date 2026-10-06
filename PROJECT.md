@@ -18,7 +18,7 @@ Fluorescent combines a high-performance native Rust core (`fluorite_core`, `fluo
 | 1 | **PBR Metallic-Roughness BRDF** | Cook-Torrance microfacet model (GGX $D$, Smith $V$, Schlick $F$), glTF 2.0 conventions | ✅ Completed |
 | 2 | **WGSL Shaders Toolchain** | `pbr_forward.wgsl`, `shadow_depth.wgsl`, `cluster_cull.wgsl`, `cluster_lod.wgsl` | ✅ Completed |
 | 3 | **Clustered Forward+ Lighting** | 16x9x24 clusters (3,456 cells) supporting 1024+ dynamic lights via compute shader & CPU fallback | ✅ Completed |
-| 4 | **Directional Cascaded Shadows (CSM)** | 4-split frustum, world-space texel snapping, 3x3 PCF with slope-scaled bias | ✅ Completed |
+| 4 | **Advanced Lighting (GI & VSM)** | Virtual Shadow Maps, Hardware RTGI, Irradiance Fields | 🚧 Partially Completed |
 | 5 | **32-Byte FlatBvhNode & 16-Bin SAH** | glam::Vec3A, 32-byte node layout, 2 nodes per 64-byte cache line, SIMD slab raycasting | ✅ Completed |
 | 6 | **Hierarchical Box-Frustum Culling** | Center-extents box-plane tests with inside-inheritance (<0.2ms for 10k entities) | ✅ Completed |
 | 7 | **Compute Frustum & HZB Occlusion** | GPU compute shader frustum culling and Hierarchical Z-Buffer depth downsampling & culling | ✅ Completed |
@@ -27,10 +27,10 @@ Fluorescent combines a high-performance native Rust core (`fluorite_core`, `fluo
 | 10 | **Mobile Thermal & Power Scaler** | Dynamic framerate throttling: Active (60 FPS) $\to$ Static (30 FPS) $\to$ Idle (15 FPS) | ✅ Completed |
 | 11 | **Rapier3D Physics & 60Hz Accumulator** | Deterministic physics pipeline with continuous collision detection (CCD) | ✅ Completed |
 | 12 | **Kinematic Character Controller (KCC)**| Autostep stairs, slope sliding limits, ground snapping, dynamic obstacle response | ✅ Completed |
-| 13 | **Vehicle Dynamics & Biomechanics** | 4-wheel raycast suspension with Pacejka tire curves, Euphoria muscle torque balance | ✅ Completed |
-| 14 | **Procedural AI & Crowd Simulation** | Batch Line-of-Sight, Crowd Density Flow Fields, Daily NPC Schedules, Police Response Tree | ✅ Completed |
+| 13 | **Advanced Animation & Destruction** | IK Solvers, FABRIK, Chaos-style Destruction | ❌ Not Started |
+| 14 | **Procedural AI & Crowd Simulation** | Batch Line-of-Sight, Crowd Density Flow Fields, Daily NPC Schedules, Police Response Tree | ❌ Not Started |
 | 15 | **Ray-Traced Spatial Acoustics** | Sound reflection/transmission paths, Sabine RT60 physical reverberation modeling | ✅ Completed |
-| 16 | **World & Virtual Texture Streaming** | Asynchronous NVMe/disk world streamer, sparse page table virtual texturing with GPU feedback | ✅ Completed |
+| 16 | **World & Virtual Texture Streaming** | Asynchronous NVMe/disk world streamer, sparse page table virtual texturing with GPU feedback | 🚧 Partially Completed |
 | 17 | **Reticulum Mesh Bridge & Nexus Protocol**| Native decentralized mesh networking (`NexusMessage::Telemetry`, `TensorDiff`, `Ping`) | ✅ Completed |
 | 18 | **OpenXR / Meta Quest 3 Integration** | Direct Vulkan swapchain rendering via `wgpu_hal`, 90/120Hz frame pacing, head & hand tracking | ✅ Completed |
 | 19 | **Zero-Copy Memory Arenas & Sentinel** | DoubleBufferedFrameAllocator, ArenaAllocator, 0xAA/0x55 sentinels, GcFirewall | ✅ Completed |

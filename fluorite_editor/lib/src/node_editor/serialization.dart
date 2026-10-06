@@ -69,6 +69,21 @@ class GraphSerialization {
           node.properties = Map<String, dynamic>.from(nodeData['properties']);
         }
 
+        switch (type) {
+        case 'MobileOptimizedTerrainPCG':
+          // AGENT 6 TODO: Serialize PCG Node to Engine Graph
+          // 1. Extract `biome_scale`, `density`, and `seed` properties from `node.properties`.
+          // 2. Format a JSON payload matching the Rust `PcgConfig` struct definition.
+          // 3. Emit this payload via WebSocket or FFI to the Rust engine to trigger world generation.
+          break;
+        case 'HalfPrecisionVFX':
+          // AGENT 6 TODO: Serialize VFX Node to Engine Graph
+          // 1. Extract particle properties (spawn rate, gravity, lifetime, color) from `node.properties`.
+          // 2. Format a JSON payload matching the Rust `ParticleConfig` struct.
+          // 3. Emit this payload to the `GpuParticleSystem` in the Rust rendering core.
+          break;
+        }
+
         graph.addNode(node);
       }
     }

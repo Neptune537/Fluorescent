@@ -108,9 +108,12 @@ impl VirtualShadowMapSystem {
         }
     }
 
-    pub fn execute(&self, _encoder: &mut wgpu::CommandEncoder) {
-        // Mobile-optimized VSM rendering execution
-        // Allocate physical pages based on camera frustum and light direction,
-        // update page table, and dispatch shadow rendering to the physical atlas.
+    pub fn execute(&self, encoder: &mut wgpu::CommandEncoder) {
+        // AGENT 1 TODO: Mobile-optimized VSM rendering execution
+        // 1. Allocate physical pages in the `physical_atlas` based on the camera frustum and light direction.
+        // 2. Update the `page_table_buffer` to map virtual memory pages to physical atlas coordinates.
+        // 3. Dispatch shadow rendering compute or render passes to write depth into the physical atlas.
+        // Note: Ensure bounds checking against config.max_pages.
+        let _ = encoder;
     }
 }
