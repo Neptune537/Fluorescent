@@ -1382,6 +1382,7 @@ dependencies = [
  "rand 0.8.8",
  "rapier3d",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "wgpu",
 ]

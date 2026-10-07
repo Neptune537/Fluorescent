@@ -350,8 +350,65 @@ pub fn update_camera_position(x: f32, y: f32, z: f32) {
         let chunk_pool = Arc::new(ChunkPoolAllocator::new(1024 * 1024, 64).unwrap());
         *guard = Some(WorldStreamingManager::new(StreamingConfig::default(), chunk_pool, None));
     }
-    
+
     if let Some(streamer) = guard.as_mut() {
         streamer.update(Vec3::new(x, y, z), Vec3::ZERO, None);
     }
 }
+
+use crate::physics::PhysicsWorld;
+use crate::spatial::geo::altitude_transition::AltitudeTransitionManager;
+use crate::spatial::geo::celestial::{compute_celestial_placements, compute_sky_illumination};
+use crate::streaming::sphere_quadtree::{SphereQuadtreeConfig, SphereQuadtreeManager};
+
+static SPHERE_QUADTREE: std::sync::RwLock<Option<SphereQuadtreeManager>> = std::sync::RwLock::new(None);
+static ALTITUDE_TRANSITION: std::sync::RwLock<Option<AltitudeTransitionManager>> = std::sync::RwLock::new(None);
+static ENGINE_PHYSICS_WORLD: std::sync::RwLock<Option<PhysicsWorld>> = std::sync::RwLock::new(None);
+
+/// Computes horizontal celestial placements (Azimuth, Elevation, 3D direction vectors)
+/// for all visible planets, Sun, Moon, and navigational stars relative to observer GPS.
+#[flutter_rust_bridge::frb(sync)]
+pub fn compute_celestial_placements_json(lat: f64, lon: f64, alt: f64, time_ms: i64) -> String {
+    let placements = compute_celestial_placements(lat, lon, alt, time_ms);
+    serde_json::to_string(&placements).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Computes solar lighting, twilight phase, and sky illumination parameters.
+#[flutter_rust_bridge::frb(sync)]
+pub fn compute_sky_illumination_json(lat: f64, lon: f64, time_ms: i64) -> String {
+    let illumination = compute_sky_illumination(lat, lon, time_ms);
+    serde_json::to_string(&illumination).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Evaluates the ~500m space-to-street altitude transition threshold and manages physics colliders.
+#[flutter_rust_bridge::frb(sync)]
+pub fn update_altitude_transition_json(lat: f64, lon: f64, alt: f64) -> String {
+    let mut trans_guard = ALTITUDE_TRANSITION.write().expect("ALTITUDE_TRANSITION lock poisoned");
+    let mut phys_guard = ENGINE_PHYSICS_WORLD.write().expect("ENGINE_PHYSICS_WORLD lock poisoned");
+
+    if trans_guard.is_none() {
+        *trans_guard = Some(AltitudeTransitionManager::default());
+    }
+    if phys_guard.is_none() {
+        *phys_guard = Some(PhysicsWorld::new());
+    }
+
+    let manager = trans_guard.as_mut().unwrap();
+    let physics = phys_guard.as_mut().unwrap();
+
+    let state = manager.update(lat, lon, alt, physics, None);
+    serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Updates camera ECEF position in the spherical quadtree streamer and returns count of visible render tiles.
+#[flutter_rust_bridge::frb(sync)]
+pub fn update_sphere_quadtree_camera_ffi(cam_x: f64, cam_y: f64, cam_z: f64) -> usize {
+    let mut guard = SPHERE_QUADTREE.write().expect("SPHERE_QUADTREE lock poisoned");
+    if guard.is_none() {
+        *guard = Some(SphereQuadtreeManager::new(SphereQuadtreeConfig::default()));
+    }
+    let manager = guard.as_mut().unwrap();
+    manager.update([cam_x, cam_y, cam_z]);
+    manager.visible_render_keys.len()
+}
+
