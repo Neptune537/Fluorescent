@@ -40,6 +40,7 @@ pub struct FluoderpodRenderer {
     pub max_page_faults: u32,
     
     pub geofence_registry: geofencing::GeofenceRegistry,
+    pub aircraft_telemetry: std::collections::HashMap<String, unified_pipeline::PackedEntityInstance>,
 }
 
 impl FluoderpodRenderer {
@@ -81,6 +82,7 @@ impl FluoderpodRenderer {
             virtual_geometry_streamer: None,
             max_page_faults,
             geofence_registry: geofencing::GeofenceRegistry::new(),
+            aircraft_telemetry: std::collections::HashMap::new(),
         }
     }
 
@@ -105,21 +107,25 @@ impl FluoderpodRenderer {
         }
 
         // Validate bytemuck cast without copying
-        let _instances: &[unified_pipeline::PackedEntityInstance] = bytemuck::try_cast_slice(raw_entity_data)
-            .map_err(|_| "Failed to cast entity slice to PackedEntityInstance")?;
+        let mut instances: Vec<unified_pipeline::PackedEntityInstance> = bytemuck::try_cast_slice(raw_entity_data)
+            .map_err(|_| "Failed to cast entity slice to PackedEntityInstance")?
+            .to_vec();
 
-        let instance_count = _instances.len();
+        let initial_count = instances.len();
+        instances.extend(self.aircraft_telemetry.values().cloned());
+        
+        let instance_count = instances.len();
         self.num_instances = instance_count as u32;
 
         #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
         if let Some(bridge) = &self.reticulum_bridge {
             bridge.send_nexus_message(reticulum_bridge::NexusMessage::Telemetry {
-                payload: format!("Batch update with {} instances", instance_count)
+                payload: format!("Batch update with {} instances ({} aircraft)", instance_count, instance_count - initial_count)
             });
         }
 
         // High-throughput upload to GPU buffers handled by the unified pipeline
-        self.pipeline_manager.update_entity_buffer(raw_entity_data);
+        self.pipeline_manager.update_entity_buffer(bytemuck::cast_slice(&instances));
 
         Ok(instance_count)
     }
@@ -132,18 +138,79 @@ impl FluoderpodRenderer {
         #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
         if let Some(bridge) = &self.reticulum_bridge {
             while let Some(msg) = bridge.try_recv_message() {
-                if let reticulum_bridge::NexusMessage::MapUpdate { json_payload } = msg {
-                    if let Ok(new_registry) = geofencing::GeofenceRegistry::from_json(&json_payload) {
-                        self.geofence_registry = new_registry;
-                        log::info!("Geofence map updated via Reticulum");
+                match msg {
+                    reticulum_bridge::NexusMessage::MapUpdate { json_payload } => {
+                        if let Ok(new_registry) = geofencing::GeofenceRegistry::from_json(&json_payload) {
+                            self.geofence_registry = new_registry;
+                            log::info!("Geofence map updated via Reticulum");
+                        }
                     }
+                    reticulum_bridge::NexusMessage::LocationUpdate { entity_id, lat, lng, timestamp: _, flight } => {
+                        // Calculate ECEF for flight visualization (assume ~10,000m cruising alt if unknown)
+                        let alt = 10000.0;
+                        let a = 6378137.0; // WGS84 major axis
+                        let e_sq = 0.00669437999014;
+                        let lat_rad = lat.to_radians();
+                        let lon_rad = lng.to_radians();
+                        let n = a / (1.0 - e_sq * lat_rad.sin() * lat_rad.sin()).sqrt();
+                        
+                        let x = (n + alt) * lat_rad.cos() * lon_rad.cos();
+                        let y = (n + alt) * lat_rad.cos() * lon_rad.sin();
+                        let z = (n * (1.0 - e_sq) + alt) * lat_rad.sin();
+                        
+                        let mut packet = crate::entity_packet::EntityPacket64 {
+                            x, y, z,
+                            entity_type: crate::entity_packet::ENTITY_TYPE_AIRCRAFT,
+                            status: 1,
+                            faction: 0,
+                            bounty_le: [0; 8],
+                            id: [0; 20],
+                        };
+                        
+                        // Use flight name or entity_id as id
+                        let ident = flight.unwrap_or(entity_id.clone());
+                        let bytes = ident.as_bytes();
+                        for i in 0..bytes.len().min(20) {
+                            packet.id[i] = bytes[i];
+                        }
+
+                        let packed = crate::unified_pipeline::PackedEntityInstance {
+                            position: [x as f32, y as f32, z as f32],
+                            sphere_radius: 20.0,
+                            rotation_quat: [0.0, 0.0, 0.0, 1.0],
+                            scale: [1.0, 1.0, 1.0],
+                            cluster_and_flags: packet.entity_type,
+                        };
+                        
+                        self.aircraft_telemetry.insert(ident, packed);
+                    }
+                    _ => {}
                 }
             }
         }
 
         // 0. Dispatch Pre-Passes: VSM and SSGI
         if let Some(vsm) = &self.vsm_system {
-            vsm.execute(encoder);
+            // Integrate AstronomyEngine for directional lighting
+            // Assuming we have a cached camera lat/lng and timestamp, or we just calculate it from origin
+            // For now, use a default lat/lng or extract from geofence/camera
+            let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+            let bodies = crate::virtual_geometry::globe::AstronomyEngine::compute_celestial_positions(37.7749, -122.4194, timestamp);
+            
+            // Extract sun direction
+            let mut sun_dir = [0.0, -1.0, 0.0];
+            if let Some(sun) = bodies.iter().find(|b| b.name == "Sun") {
+                let az = sun.azimuth;
+                let el = sun.elevation;
+                // Convert spherical azimuth/elevation to cartesian direction vector
+                sun_dir = [
+                    (el.cos() * az.sin()) as f32,
+                    el.sin() as f32,
+                    (el.cos() * az.cos()) as f32,
+                ];
+            }
+
+            vsm.execute(encoder, sun_dir);
         }
 
         // 1. Dispatch Frustum & Occlusion Culling

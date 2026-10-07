@@ -108,7 +108,7 @@ impl VirtualShadowMapSystem {
         }
     }
 
-    pub fn execute(&self, encoder: &mut wgpu::CommandEncoder) {
+    pub fn execute(&self, encoder: &mut wgpu::CommandEncoder, light_dir: [f32; 3]) {
         // 1. Allocate physical pages in the `physical_atlas` based on the camera frustum and light direction.
         let mut allocated_pages = Vec::new();
         let num_physical_pages = self.config.atlas_size_pages * self.config.atlas_size_pages;

@@ -15,6 +15,7 @@ pub const ENTITY_TYPE_TASK: u32 = 1;
 pub const ENTITY_TYPE_PLAYER: u32 = 2;
 pub const ENTITY_TYPE_GUILD_HUB: u32 = 3;
 pub const ENTITY_TYPE_TRAP: u32 = 4;
+pub const ENTITY_TYPE_AIRCRAFT: u32 = 5;
 
 /// Errors from decoding a packet batch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

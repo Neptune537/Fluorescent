@@ -7,6 +7,8 @@ struct CameraUniform {
     _padding2: f32,
     debug_page_faults: u32,
     _padding3: vec3<f32>,
+    // 6 frustum planes (nx, ny, nz, d)
+    frustum_planes: array<vec4<f32>, 6>,
 }
 
 struct ClusterHeader {
@@ -60,6 +62,17 @@ fn get_screen_space_error(cluster_error: f32, center: vec3<f32>, radius: f32) ->
     return error_factor * projection_factor;
 }
 
+fn is_sphere_in_frustum(center: vec3<f32>, radius: f32) -> bool {
+    for (var i = 0u; i < 6u; i = i + 1u) {
+        let plane = camera.frustum_planes[i];
+        let distance = dot(plane.xyz, center) + plane.w;
+        if distance < -radius {
+            return false;
+        }
+    }
+    return true;
+}
+
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
@@ -81,6 +94,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     // The root node has parent_lod_error = infinity (or a very large number), so it will always pass the parent condition.
     // If the cluster error is within the threshold, but the parent's error is too large, we select this cluster.
     if cluster_sse <= threshold && parent_sse > threshold {
+        // Frustum cull
+        if !is_sphere_in_frustum(cluster.sphere_bounds.xyz, cluster.sphere_bounds.w) {
+            return;
+        }
+
         // Check if the cluster is resident in memory (vertex_offset != 0xFFFFFFFF)
         if cluster.vertex_offset != 0xFFFFFFFFu {
             // Output an indirect draw call

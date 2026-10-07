@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+pub mod globe;
 
 /// Virtual Geometry (Nanite-style) cluster evaluation.
 

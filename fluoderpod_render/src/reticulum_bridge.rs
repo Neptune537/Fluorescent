@@ -13,6 +13,13 @@ pub enum NexusMessage {
     Telemetry { payload: String },
     MapUpdate { json_payload: String },
     TensorDiff { diff_buffer: String, node_id: String },
+    LocationUpdate {
+        entity_id: String,
+        lat: f64,
+        lng: f64,
+        timestamp: i64,
+        flight: Option<String>,
+    },
     Ping,
 }
 

@@ -19,6 +19,13 @@ pub enum RailMessage {
         position: [f32; 3],
         orientation: [f32; 4], // quaternion x,y,z,w
     },
+    LocationUpdate {
+        entity_id: String,
+        lat: f64,
+        lng: f64,
+        timestamp: i64,
+        flight: Option<String>,
+    },
     Ping,
 }
 
