@@ -69,8 +69,7 @@ impl PipelineManager {
         let staging_instances = Arc::new(RwLock::new(Vec::new()));
         let staging_instances_clone = staging_instances.clone();
 
-        // Setup async background task to drain render commands
-        tokio::spawn(async move {
+        let task = async move {
             let mut pending_commands = Vec::new();
             while let Some(cmd) = rx.recv().await {
                 pending_commands.push(cmd);
@@ -105,7 +104,13 @@ impl PipelineManager {
 
                 pending_commands.clear();
             }
-        });
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::spawn(task);
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(task);
 
         Self {
             device,

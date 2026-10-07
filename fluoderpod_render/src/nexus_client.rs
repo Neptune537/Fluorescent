@@ -8,6 +8,9 @@ pub enum RailMessage {
     Telemetry {
         payload: String,
     },
+    MapUpdate {
+        json_payload: String,
+    },
     TensorDiff {
         diff_buffer: String,
         node_id: String,

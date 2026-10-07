@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 #[serde(tag = "type")]
 pub enum NexusMessage {
     Telemetry { payload: String },
+    MapUpdate { json_payload: String },
     TensorDiff { diff_buffer: String, node_id: String },
     Ping,
 }

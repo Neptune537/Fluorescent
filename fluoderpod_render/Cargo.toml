@@ -32,9 +32,11 @@ serde = { version = "1.0.180", features = ["derive"] }
 serde_json = "1.0.100"
 bytes = { version = "1.12.1", optional = true }
 wgpu-hal = { version = "0.21.1", features = ["vulkan"] }
-openxr = { version = "0.22.0", optional = true }
+raw-window-handle = "0.6"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster = "0.3"
+openxr = { version = "0.22.0", optional = true }
 tokio = { version = "1.30.0", features = ["rt-multi-thread", "sync", "macros", "time"] }
 tokio-tungstenite = { version = "0.20.0", optional = true }
 webrtc = { version = "0.11.0", optional = true }
@@ -51,6 +53,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 console_error_panic_hook = "0.1"
+tokio = { version = "1.30.0", features = ["sync", "macros"] }
 wgpu = { version = "0.20.1", features = ["webgpu"] }
 web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "Performance", "Navigator", "Gpu", "console", "CssStyleDeclaration", "HtmlElement"] }
 

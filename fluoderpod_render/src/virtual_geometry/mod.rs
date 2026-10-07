@@ -248,7 +248,7 @@ impl ClusterStreamer {
         let (request_tx, mut request_rx) = tokio::sync::mpsc::channel::<u32>(1024);
         let (response_tx, response_rx) = tokio::sync::mpsc::channel::<ClusterData>(1024);
 
-        tokio::spawn(async move {
+        let task = async move {
             while let Some(cluster_id) = request_rx.recv().await {
                 if let Some(cluster_data) = storage.fetch_cluster(cluster_id) {
                     if response_tx.send(cluster_data).await.is_err() {
@@ -256,7 +256,13 @@ impl ClusterStreamer {
                     }
                 }
             }
-        });
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::spawn(task);
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(task);
 
         Self {
             request_tx,

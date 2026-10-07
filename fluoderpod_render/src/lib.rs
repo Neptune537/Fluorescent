@@ -7,6 +7,7 @@ pub mod unified_pipeline;
 pub mod virtual_geometry;
 pub mod thermal;
 pub mod entity_packet;
+pub mod geofencing;
 
 /// The main entry point for the fluoderpod GPU-driven render graph.
 pub struct FluoderpodRenderer {
@@ -37,6 +38,8 @@ pub struct FluoderpodRenderer {
     pub thermal_scaler: thermal::ThermalScaler,
     pub virtual_geometry_streamer: Option<virtual_geometry::ClusterStreamer>,
     pub max_page_faults: u32,
+    
+    pub geofence_registry: geofencing::GeofenceRegistry,
 }
 
 impl FluoderpodRenderer {
@@ -77,6 +80,7 @@ impl FluoderpodRenderer {
             thermal_scaler: thermal::ThermalScaler::new(),
             virtual_geometry_streamer: None,
             max_page_faults,
+            geofence_registry: geofencing::GeofenceRegistry::new(),
         }
     }
 
@@ -120,9 +124,22 @@ impl FluoderpodRenderer {
         Ok(instance_count)
     }
 
-    /// Executes the full GPU-driven frame: Culling -> Virtual Geometry LOD -> Indirect Draw
-    pub fn execute_frame<'a>(&'a mut self, encoder: &mut wgpu::CommandEncoder, render_pass: &mut wgpu::RenderPass<'a>) {
+    /// Executes pre-render compute passes (culling, virtual geometry evaluation, VSM)
+    pub fn dispatch_compute_passes(&mut self, encoder: &mut wgpu::CommandEncoder) {
         self.pipeline_manager.flush_staging_to_gpu();
+
+        // Process incoming mesh network messages (e.g. MapUpdates from the editor/network)
+        #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
+        if let Some(bridge) = &self.reticulum_bridge {
+            while let Some(msg) = bridge.try_recv_message() {
+                if let reticulum_bridge::NexusMessage::MapUpdate { json_payload } = msg {
+                    if let Ok(new_registry) = geofencing::GeofenceRegistry::from_json(&json_payload) {
+                        self.geofence_registry = new_registry;
+                        log::info!("Geofence map updated via Reticulum");
+                    }
+                }
+            }
+        }
 
         // 0. Dispatch Pre-Passes: VSM and SSGI
         if let Some(vsm) = &self.vsm_system {
@@ -188,9 +205,6 @@ impl FluoderpodRenderer {
             );
         }
 
-        // 3. Issue Unified Indirect Draw commands
-        self.pipeline_manager.submit_indirect_draws(render_pass, self.num_instances);
-
         // 4. Readback page faults for virtual geometry streaming
         if let (Some(streamer), Some(page_fault_buf)) = (
             &self.virtual_geometry_streamer,
@@ -203,9 +217,60 @@ impl FluoderpodRenderer {
                 self.max_page_faults,
             );
         }
+    }
 
-        // 5. Adaptive Thermal Throttling
+    /// Submits unified indirect draw commands into an active render pass.
+    pub fn submit_indirect_draws<'a>(&'a mut self, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.pipeline_manager.submit_indirect_draws(render_pass, self.num_instances);
+    }
+
+    /// Executes the full GPU-driven frame onto a target texture view:
+    /// Pre-Passes -> Compute Culling -> Virtual Geometry LOD -> Indirect Draw -> Thermal Throttle
+    pub fn render_frame_to_view(&mut self, encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
+        self.dispatch_compute_passes(encoder);
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Main Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.08,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            self.submit_indirect_draws(&mut render_pass);
+        }
+
         self.thermal_scaler.throttle();
+    }
+
+    /// Executes the full GPU-driven frame: Culling -> Virtual Geometry LOD -> Indirect Draw
+    pub fn execute_frame<'a>(&'a mut self, encoder: &mut wgpu::CommandEncoder, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.thermal_scaler.throttle();
+        self.dispatch_compute_passes(encoder);
+        self.submit_indirect_draws(render_pass);
+    }
+
+    /// Evaluates logic per tick (e.g. checking boundary crosses against the geofence registry).
+    /// Returns the IDs of the active geofences the player currently resides in.
+    pub fn update_logic(&mut self, player_position: [f32; 3]) -> Vec<geofencing::GeofenceId> {
+        let active_zones = self.geofence_registry.query_point(player_position);
+        
+        // Optionally, emit a telemetry event if the active zone changes.
+        // We'll leave the diffing to the caller (Flutter/Dart) to minimize Rust state tracking.
+        active_zones
     }
 
     /// Update the thermal scaler's activity state based on engine input (e.g. camera movement, entity updates)
@@ -217,31 +282,9 @@ impl FluoderpodRenderer {
 pub mod android_vulkan;
 
 #[cfg(target_arch = "wasm32")]
-pub async fn create_webgpu_surface_from_canvas(
-    instance: &wgpu::Instance,
-    canvas_id: &str,
-) -> Result<wgpu::Surface<'static>, Box<dyn std::error::Error>> {
-    use wasm_bindgen::JsCast;
-    let window = web_sys::window().ok_or("No global window found")?;
-    let document = window.document().ok_or("No document found")?;
-    let canvas = document
-        .get_element_by_id(canvas_id)
-        .ok_or_else(|| format!("Canvas element '{}' not found", canvas_id))?;
-    let html_canvas: web_sys::HtmlCanvasElement = canvas.dyn_into().map_err(|_| "Element is not a canvas")?;
-    let surface = instance.create_surface(wgpu::SurfaceTarget::Canvas(html_canvas))?;
-    Ok(surface)
-}
-
+pub mod web_canvas;
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen::prelude::wasm_bindgen]
-pub async fn start_web_renderer(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
-    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    log::info!("Web renderer starting on canvas: {}", canvas_id);
-    
-    // Minimal setup for a wasm-bindgen entry point binding to the canvas.
-    // In a full implementation, this would spin up the wgpu event loop here.
-    Ok(())
-}
+pub use web_canvas::*;
 
 /// C-ABI FFI function for Flutter to pass byte pointers directly via dart:ffi
 #[no_mangle]
@@ -261,6 +304,41 @@ pub unsafe extern "C" fn fluoderpod_ingest_batch(
         Ok(count) => i32::try_from(count).unwrap_or(i32::MAX),
         Err(_) => -2,
     }
+}
+
+/// Convenience FFI for platforms where the renderer is held globally (e.g. Android JNI or Web).
+/// Copies 64-byte `EntityPacket64` structs directly into the active renderer buffers.
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_ingest_batch_global(
+    data_ptr: *const u8,
+    data_len: usize,
+) -> i32 {
+    if data_ptr.is_null() {
+        return -1;
+    }
+    let data_slice = std::slice::from_raw_parts(data_ptr, data_len);
+    #[cfg(target_os = "android")]
+    {
+        android_vulkan::ingest_into_any_active_session(data_slice)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_canvas::fluoderpod_ingest_batch_web(data_slice)
+    }
+    #[cfg(not(any(target_os = "android", target_arch = "wasm32")))]
+    {
+        let _ = data_slice;
+        -1
+    }
+}
+
+/// Alias for global batch ingestion
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_ingest_batch_ptr(
+    data_ptr: *const u8,
+    data_len: usize,
+) -> i32 {
+    fluoderpod_ingest_batch_global(data_ptr, data_len)
 }
 
 /// FFI for pre-built 48-byte GPU `PackedEntityInstance` buffers.
