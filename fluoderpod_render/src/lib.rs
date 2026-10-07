@@ -232,6 +232,17 @@ pub async fn create_webgpu_surface_from_canvas(
     Ok(surface)
 }
 
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub async fn start_web_renderer(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    log::info!("Web renderer starting on canvas: {}", canvas_id);
+    
+    // Minimal setup for a wasm-bindgen entry point binding to the canvas.
+    // In a full implementation, this would spin up the wgpu event loop here.
+    Ok(())
+}
+
 /// C-ABI FFI function for Flutter to pass byte pointers directly via dart:ffi
 #[no_mangle]
 pub unsafe extern "C" fn fluoderpod_ingest_batch(
