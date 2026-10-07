@@ -59,13 +59,18 @@ impl TemporalUpscalingContext {
 
     /// Dispatches the upscale compute workload into the Vulkan command buffer.
     /// Needs to be called immediately before Post-Processing/Tonemapping.
-    pub fn evaluate_upscaler(&self, /* command_buffer: vk::CommandBuffer */) {
+    pub fn evaluate_upscaler(&self, encoder: &mut wgpu::CommandEncoder) {
         match self.upscaler_type {
             UpscalerType::None => {
                 // Perform a simple blit or no-op if render == display size
             }
             UpscalerType::TAA => {
                 // 1. Bind the current frame color buffer and the history buffer.
+                // Pseudo-code for compute pass execution
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("TAA Compute Pass"),
+                    timestamp_writes: None,
+                });
                 // let history_buffer = get_history_buffer();
                 // bind_texture(0, current_color);
                 // bind_texture(1, history_buffer);
@@ -74,14 +79,20 @@ impl TemporalUpscalingContext {
                 // bind_texture(2, velocity_buffer);
 
                 // 3. Dispatch the TAA compute shader to blend the frames based on motion and neighborhood clamping.
-                // compute_pass.dispatch_workgroups(render_width / 8, render_height / 8, 1);
+                let workgroup_x = (self.render_width + 7) / 8;
+                let workgroup_y = (self.render_height + 7) / 8;
+                compute_pass.dispatch_workgroups(workgroup_x, workgroup_y, 1);
+
+                drop(compute_pass); // End pass
 
                 // 4. Update the history buffer with the resolved frame.
                 // copy_texture_to_texture(resolved_output, history_buffer);
-
-                // Note: Scaffolding representing the logic flow of Temporal Anti-Aliasing.
             }
             UpscalerType::FSR2 => {
+                // FSR2 requires external SDK integration, typically dispatched via a
+                // native C++ FFI call which binds its own Vulkan command buffers.
+                // We leave the pseudo code here as scaffolding for the FFI implementation.
+
                 // 1. Update FSR2 dispatch description parameters (jitter offset, camera settings, exposure).
                 // let mut fsr2_params = FfxFsr2DispatchDescription {
                 //     jitter_offset: [self.jitter_offset.x, self.jitter_offset.y],
@@ -98,7 +109,11 @@ impl TemporalUpscalingContext {
                 // 3. Dispatch the FSR2 compute shaders to perform temporal upscaling.
                 // ffxFsr2ContextDispatch(&context, &fsr2_params);
 
-                // Note: Scaffolding representing the API binding to AMD FSR2 SDK.
+                // For wgpu we simulate the compute pass for tracking
+                let mut _compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("FSR2 Compute Pass Mock"),
+                    timestamp_writes: None,
+                });
             }
             UpscalerType::DLSS => {
                 // 1. Transition buffers

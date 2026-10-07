@@ -114,7 +114,7 @@ impl RtgiPipeline {
     }
 
     /// Dispatches the RTGI compute shader to update irradiance probes.
-    pub fn update_probes(&mut self, _tlas: &TlasInstance, _encoder: &mut wgpu::CommandEncoder) {
+    pub fn update_probes(&mut self, tlas: &TlasInstance, encoder: &mut wgpu::CommandEncoder) {
         // Scaffolding: Simulating the CPU-side RTGI dispatch and irradiance update
         // In a real scenario, this would configure and launch a compute shader (e.g. wgpu ComputePass)
 
@@ -122,13 +122,29 @@ impl RtgiPipeline {
         let bounces = self.config.max_bounces;
         let alpha = self.config.temporal_accumulation_factor;
 
+        // In a real implementation we would bind the TLAS to a compute pipeline
+        // and dispatch workgroups. Here we simulate the logic in software for now.
+        let _ = tlas;
+
+        // Simulating compute pass dispatch
+        let mut _compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("RTGI Update Probes Pass"),
+            timestamp_writes: None,
+        });
+
+        // Pseudo-dispatch
+        // _compute_pass.set_pipeline(&rtgi_pipeline);
+        // _compute_pass.set_bind_group(0, &rtgi_bind_group, &[]);
+        // _compute_pass.dispatch_workgroups(self.probes.len() as u32 / 64 + 1, 1, 1);
+
         for probe in self.probes.iter_mut() {
-            // 1. Trace `self.config.rays_per_pixel` rays from each probe position against the `_tlas`.
+            // 1. Trace `self.config.rays_per_pixel` rays from each probe position against the `tlas`.
             // (Simulated ray tracing)
             let mut accumulated_radiance = Vec3::ZERO;
 
             for _ in 0..rays {
                 // 2. Accumulate incoming radiance based on max_bounces.
+                // In hardware ray tracing, we would call traceRayEXT.
                 let mut path_radiance = Vec3::new(0.1, 0.1, 0.1); // dummy ambient radiance
                 for _ in 0..bounces {
                     // Simulate bounce accumulation
@@ -141,10 +157,20 @@ impl RtgiPipeline {
 
             // 3. Project the accumulated radiance onto Spherical Harmonics (SH) coefficients.
             // Simplified projection for L0 and L1
-            let projected_c0 = avg_radiance * 0.282095;
-            let projected_c1_y = avg_radiance * 0.488603 * 0.577; // Dummy normal direction (y)
-            let projected_c1_z = avg_radiance * 0.488603 * 0.577; // Dummy normal direction (z)
-            let projected_c1_x = avg_radiance * 0.488603 * 0.577; // Dummy normal direction (x)
+            // C0 = 1 / (2 * sqrt(pi))
+            let c0_val = 0.282095;
+            let projected_c0 = avg_radiance * c0_val;
+
+            // C1 = sqrt(3) / (2 * sqrt(pi))
+            let c1_val = 0.488603;
+            // Simulated random normal directions for projection
+            let dir_y = Vec3::new(0.0, 1.0, 0.0);
+            let dir_z = Vec3::new(0.0, 0.0, 1.0);
+            let dir_x = Vec3::new(1.0, 0.0, 0.0);
+
+            let projected_c1_y = avg_radiance * c1_val * dir_y.y;
+            let projected_c1_z = avg_radiance * c1_val * dir_z.z;
+            let projected_c1_x = avg_radiance * c1_val * dir_x.x;
 
             // 4. Update the `sh_coefficients` for each probe in `self.probes` using temporal accumulation.
             probe.sh_coefficients[0] = [
