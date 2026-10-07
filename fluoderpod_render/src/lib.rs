@@ -6,6 +6,7 @@ pub mod reticulum_bridge;
 pub mod unified_pipeline;
 pub mod virtual_geometry;
 pub mod thermal;
+pub mod entity_packet;
 
 /// The main entry point for the fluoderpod GPU-driven render graph.
 pub struct FluoderpodRenderer {
@@ -83,6 +84,15 @@ impl FluoderpodRenderer {
     /// This bypasses CPU-side iteration and prepares the data for compute culling.
     pub fn push_render_command(&mut self, cmd: unified_pipeline::RenderCommand) {
         let _ = self.pipeline_manager.render_command_tx.send(cmd);
+    }
+
+    /// Ingests a contiguous buffer of 64-byte little-endian `EntityPacket64` wire packets
+    /// (see `ENTITY_PACKET_CONTRACT.md`), decoding them into GPU instances.
+    /// Never panics; a length not divisible by 64 returns `Err`.
+    pub fn ingest_entity_packets(&mut self, raw: &[u8]) -> Result<usize, entity_packet::EntityPacketError> {
+        let instances = entity_packet::decode_to_gpu_instances(raw)?;
+        self.ingest_fluoderpod_batch(bytemuck::cast_slice(&instances))
+            .map_err(|_| entity_packet::EntityPacketError::InvalidLength { len: raw.len() })
     }
 
     pub fn ingest_fluoderpod_batch(&mut self, raw_entity_data: &[u8]) -> Result<usize, &'static str> {
@@ -234,8 +244,29 @@ pub unsafe extern "C" fn fluoderpod_ingest_batch(
     }
     let renderer = &mut *renderer_ptr;
     let data_slice = std::slice::from_raw_parts(data_ptr, data_len);
+    // Wire format: 64-byte EntityPacket64 (see ENTITY_PACKET_CONTRACT.md).
+    // Returns entity count (>= 0), -1 null pointer, -2 invalid length.
+    match renderer.ingest_entity_packets(data_slice) {
+        Ok(count) => i32::try_from(count).unwrap_or(i32::MAX),
+        Err(_) => -2,
+    }
+}
+
+/// FFI for pre-built 48-byte GPU `PackedEntityInstance` buffers.
+/// Returns instance count, -1 null pointer, -2 invalid length.
+#[no_mangle]
+pub unsafe extern "C" fn fluoderpod_ingest_gpu_instances(
+    renderer_ptr: *mut FluoderpodRenderer,
+    data_ptr: *const u8,
+    data_len: usize,
+) -> i32 {
+    if renderer_ptr.is_null() || data_ptr.is_null() {
+        return -1;
+    }
+    let renderer = &mut *renderer_ptr;
+    let data_slice = std::slice::from_raw_parts(data_ptr, data_len);
     match renderer.ingest_fluoderpod_batch(data_slice) {
-        Ok(count) => count as i32,
+        Ok(count) => i32::try_from(count).unwrap_or(i32::MAX),
         Err(_) => -2,
     }
 }
@@ -252,6 +283,7 @@ pub unsafe extern "C" fn fluoderpod_set_scene_activity(
     }
 }
 
+#[cfg(feature = "xr")]
 pub mod xr;
 
 /// FFI to start the OpenXR VR Session
