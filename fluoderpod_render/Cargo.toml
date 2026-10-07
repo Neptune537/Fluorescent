@@ -24,7 +24,7 @@ webrtc-stream = ["nexus", "dep:webrtc", "dep:bytes", "dep:futures-util"]
 # OpenXR session support.
 xr = ["dep:openxr"]
 [dependencies]
-wgpu = "0.21.1"
+wgpu = "0.20.1"
 bytemuck = { version = "1.16", features = ["derive"] }
 log = "0.4"
 futures-util = { version = "0.3.28", optional = true }
@@ -51,7 +51,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 console_error_panic_hook = "0.1"
-wgpu = { version = "0.21.1", features = ["webgpu"] }
+wgpu = { version = "0.20.1", features = ["webgpu"] }
 web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "Performance", "Navigator", "Gpu", "console", "CssStyleDeclaration", "HtmlElement"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]

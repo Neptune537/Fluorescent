@@ -108,3 +108,22 @@ pub unsafe fn import_hardware_buffer_to_wgpu(
     // Since we don't have the full wgpu-core machinery here, we'll return None for now.
     None
 }
+
+#[no_mangle]
+pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_startRenderer<'local>(
+    _env: jni::JNIEnv<'local>,
+    _class: JObject<'local>,
+    _surface: JObject<'local>,
+) {
+    log::info!("Rust Vulkan: startRenderer called");
+    // TODO: Create a Vulkan surface from the Android window and run the render loop
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_stopRenderer<'local>(
+    _env: jni::JNIEnv<'local>,
+    _class: JObject<'local>,
+) {
+    log::info!("Rust Vulkan: stopRenderer called");
+    // TODO: Stop the render loop
+}
