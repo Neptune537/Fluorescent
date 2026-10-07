@@ -1,7 +1,7 @@
 pub mod culling;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "nexus"))]
 pub mod nexus_client;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
 pub mod reticulum_bridge;
 pub mod unified_pipeline;
 pub mod virtual_geometry;
@@ -14,7 +14,7 @@ pub struct FluoderpodRenderer {
     pub pipeline_manager: unified_pipeline::PipelineManager,
     // Add systems to manage dispatch
     pub culling_system: Option<culling::ComputeCuller>,
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
     pub reticulum_bridge: Option<std::sync::Arc<reticulum_bridge::ReticulumBridge>>,
     pub virtual_geometry_system: Option<virtual_geometry::VirtualGeometrySystem>,
 
@@ -58,7 +58,7 @@ impl FluoderpodRenderer {
         Self {
             pipeline_manager,
             culling_system: None,
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
             reticulum_bridge: None,
             virtual_geometry_system: None,
             camera_uniform_buffer: None,
@@ -107,7 +107,7 @@ impl FluoderpodRenderer {
         let instance_count = _instances.len();
         self.num_instances = instance_count as u32;
 
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), feature = "reticulum"))]
         if let Some(bridge) = &self.reticulum_bridge {
             bridge.send_nexus_message(reticulum_bridge::NexusMessage::Telemetry {
                 payload: format!("Batch update with {} instances", instance_count)
@@ -302,9 +302,9 @@ pub unsafe extern "C" fn fluoderpod_stop_vr_session() -> i32 {
     1
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "webrtc-stream"))]
 pub mod webrtc_signalling;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "webrtc-stream"))]
 pub mod webrtc_streamer;
 
 pub mod headless_render;
