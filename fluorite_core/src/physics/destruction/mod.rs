@@ -36,6 +36,7 @@ impl DestructionSystem {
         }
 
         let mut base_pos = glam::Vec3::ZERO;
+        let mut base_rotation = rapier3d::na::UnitQuaternion::identity();
         let mut old_handle = None;
 
         if let Ok(transform) = world.ecs.query_one_mut::<&TransformComponent>(entity) {
@@ -50,53 +51,106 @@ impl DestructionSystem {
             old_handle = phys.handle;
         }
 
+        // 2. Extract compound shapes (Voronoi cells) before despawning the original entity.
+        let mut fractured_parts = Vec::new();
+        if let Some(handle) = old_handle {
+            if let Some(body) = world.physics.get_rigid_body(handle) {
+                base_rotation = *body.rotation();
+                for collider_handle in body.colliders() {
+                    if let Some(collider) = world.physics.get_collider(*collider_handle) {
+                        if let Some(compound) = collider.shape().as_compound() {
+                            for (isometry, shape) in compound.shapes() {
+                                fractured_parts.push((isometry.clone(), shape.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 3. Despawn the original entity.
         if let Some(handle) = old_handle {
             world.physics.remove_rigid_body(handle);
         }
         let _ = world.ecs.despawn(entity);
 
-        // 2. Perform Voronoi 3D cellular fracture on the entity's mesh at the `_impact_point`.
-        // (Mock implementation: spawning 8 chunks)
-        let num_chunks = 8;
-        for i in 0..num_chunks {
-            // Offset logic for mock chunks
-            let angle = (i as f32) * std::f32::consts::PI / 4.0;
-            let offset = glam::Vec3::new(angle.cos(), 0.5, angle.sin()) * 1.0;
-            let chunk_pos = base_pos + offset;
+        // 4. Spawn new child entities for each fractured chunk, instantiating dynamic Rapier3D rigid bodies.
+        if !fractured_parts.is_empty() {
+            for (isometry, shape) in fractured_parts {
+                let local_offset = rapier3d::na::Vector3::new(
+                    isometry.translation.vector.x,
+                    isometry.translation.vector.y,
+                    isometry.translation.vector.z,
+                );
+                // Apply parent rotation to local offset
+                let rotated_offset = base_rotation * local_offset;
 
-            // 4. Spawn new child entities for each fractured chunk, instantiating dynamic Rapier3D rigid bodies.
-            let mut body = RigidBodyBuilder::dynamic()
-                .translation(vector![chunk_pos.x, chunk_pos.y, chunk_pos.z])
-                .build();
+                let chunk_pos = base_pos + glam::Vec3::new(rotated_offset.x, rotated_offset.y, rotated_offset.z);
+                let chunk_rot = base_rotation * isometry.rotation;
 
-            // 5. Apply outward impulse forces to the chunks to simulate the explosion/impact.
-            let dir = (chunk_pos - impact_point).normalize_or_zero();
-            let impulse = dir * (force * 0.1); // Scaled force distribution
-            body.apply_impulse(vector![impulse.x, impulse.y, impulse.z], true);
+                let mut body = RigidBodyBuilder::dynamic()
+                    .translation(vector![chunk_pos.x, chunk_pos.y, chunk_pos.z])
+                    .rotation(chunk_rot.scaled_axis())
+                    .build();
 
-            let body_handle = world.physics.insert_rigid_body(body);
+                // 5. Apply outward impulse forces to the chunks to simulate the explosion/impact.
+                let dir = (chunk_pos - impact_point).normalize_or_zero();
+                let impulse = dir * (force * 0.1);
+                body.apply_impulse(vector![impulse.x, impulse.y, impulse.z], true);
 
-            // Create a small collider for the chunk
-            let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5).build();
-            world.physics.insert_collider(collider, body_handle);
+                let body_handle = world.physics.insert_rigid_body(body);
 
-            // Identity matrix with position embedded
-            let mut matrix = [0.0; 16];
-            matrix[0] = 1.0;
-            matrix[5] = 1.0;
-            matrix[10] = 1.0;
-            matrix[15] = 1.0;
-            matrix[12] = chunk_pos.x;
-            matrix[13] = chunk_pos.y;
-            matrix[14] = chunk_pos.z;
+                let chunk_collider = ColliderBuilder::new(shape).build();
+                world.physics.insert_collider(chunk_collider, body_handle);
 
-            world.ecs.spawn((
-                TransformComponent { matrix },
-                PhysicsComponent {
-                    handle: Some(body_handle),
-                },
-            ));
+                let matrix = crate::physics::sync::sync_body_transform_to_mat4(
+                    world.physics.get_rigid_body(body_handle).unwrap()
+                );
+
+                world.ecs.spawn((
+                    TransformComponent { matrix },
+                    PhysicsComponent {
+                        handle: Some(body_handle),
+                    },
+                ));
+            }
+        } else {
+            // Mock fallback if the entity didn't have a compound shape.
+            let num_chunks = 8;
+            for i in 0..num_chunks {
+                let angle = (i as f32) * std::f32::consts::PI / 4.0;
+                let offset = glam::Vec3::new(angle.cos(), 0.5, angle.sin()) * 1.0;
+                let chunk_pos = base_pos + offset;
+
+                let mut body = RigidBodyBuilder::dynamic()
+                    .translation(vector![chunk_pos.x, chunk_pos.y, chunk_pos.z])
+                    .build();
+
+                let dir = (chunk_pos - impact_point).normalize_or_zero();
+                let impulse = dir * (force * 0.1);
+                body.apply_impulse(vector![impulse.x, impulse.y, impulse.z], true);
+
+                let body_handle = world.physics.insert_rigid_body(body);
+
+                let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5).build();
+                world.physics.insert_collider(collider, body_handle);
+
+                let mut matrix = [0.0; 16];
+                matrix[0] = 1.0;
+                matrix[5] = 1.0;
+                matrix[10] = 1.0;
+                matrix[15] = 1.0;
+                matrix[12] = chunk_pos.x;
+                matrix[13] = chunk_pos.y;
+                matrix[14] = chunk_pos.z;
+
+                world.ecs.spawn((
+                    TransformComponent { matrix },
+                    PhysicsComponent {
+                        handle: Some(body_handle),
+                    },
+                ));
+            }
         }
     }
 }
