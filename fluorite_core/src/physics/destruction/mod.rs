@@ -2,6 +2,8 @@
 
 use crate::ecs::world::{EngineWorld, PhysicsComponent, TransformComponent};
 use hecs::Entity;
+use rand::Rng;
+use rapier3d::na::Point3;
 use rapier3d::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -57,13 +59,66 @@ impl DestructionSystem {
         let _ = world.ecs.despawn(entity);
 
         // 2. Perform Voronoi 3D cellular fracture on the entity's mesh at the `_impact_point`.
-        // (Mock implementation: spawning 8 chunks)
-        let num_chunks = 8;
-        for i in 0..num_chunks {
-            // Offset logic for mock chunks
-            let angle = (i as f32) * std::f32::consts::PI / 4.0;
-            let offset = glam::Vec3::new(angle.cos(), 0.5, angle.sin()) * 1.0;
-            let chunk_pos = base_pos + offset;
+        let num_seeds = 12;
+        let mut rng = rand::thread_rng();
+        let mut seeds = Vec::with_capacity(num_seeds);
+
+        for _ in 0..num_seeds {
+            seeds.push(glam::Vec3::new(
+                rng.gen_range(-0.5..0.5),
+                rng.gen_range(-0.5..0.5),
+                rng.gen_range(-0.5..0.5),
+            ));
+        }
+
+        let grid_size = 10;
+        let step = 1.0 / (grid_size as f32 - 1.0);
+
+        let mut cell_points: Vec<Vec<glam::Vec3>> = vec![Vec::new(); num_seeds];
+
+        for x in 0..grid_size {
+            for y in 0..grid_size {
+                for z in 0..grid_size {
+                    let p = glam::Vec3::new(
+                        -0.5 + (x as f32) * step,
+                        -0.5 + (y as f32) * step,
+                        -0.5 + (z as f32) * step,
+                    );
+
+                    let mut min_dist = f32::MAX;
+                    let mut closest_seed = 0;
+
+                    for (i, seed) in seeds.iter().enumerate() {
+                        let dist = (p - *seed).length_squared();
+                        if dist < min_dist {
+                            min_dist = dist;
+                            closest_seed = i;
+                        }
+                    }
+
+                    cell_points[closest_seed].push(p);
+                }
+            }
+        }
+
+        for points in cell_points {
+            if points.is_empty() {
+                continue;
+            }
+
+            let mut centroid = glam::Vec3::ZERO;
+            for p in &points {
+                centroid += *p;
+            }
+            centroid /= points.len() as f32;
+
+            let mut hull_points = Vec::with_capacity(points.len());
+            for p in &points {
+                let rel_p = *p - centroid;
+                hull_points.push(Point3::new(rel_p.x, rel_p.y, rel_p.z));
+            }
+
+            let chunk_pos = base_pos + centroid;
 
             // 4. Spawn new child entities for each fractured chunk, instantiating dynamic Rapier3D rigid bodies.
             let mut body = RigidBodyBuilder::dynamic()
@@ -78,7 +133,9 @@ impl DestructionSystem {
             let body_handle = world.physics.insert_rigid_body(body);
 
             // Create a small collider for the chunk
-            let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5).build();
+            let collider = ColliderBuilder::convex_hull(&hull_points)
+                .unwrap_or_else(|| ColliderBuilder::cuboid(0.1, 0.1, 0.1))
+                .build();
             world.physics.insert_collider(collider, body_handle);
 
             // Identity matrix with position embedded
@@ -98,5 +155,43 @@ impl DestructionSystem {
                 },
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ecs::world::EngineWorld;
+
+    #[test]
+    fn test_process_fracture() {
+        let mut world = EngineWorld::new();
+
+        let entity = world.ecs.spawn((
+            TransformComponent {
+                matrix: [
+                    1.0, 0.0, 0.0, 0.0,
+                    0.0, 1.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0,
+                    0.0, 0.0, 0.0, 1.0,
+                ],
+            },
+            PhysicsComponent { handle: None },
+            Destructible {
+                impact_threshold: 10.0,
+            },
+        ));
+
+        let mut destruction_system = DestructionSystem::new();
+
+        // This should trigger a fracture
+        destruction_system.process_fracture(&mut world, entity, glam::Vec3::new(1.0, 0.0, 0.0), 20.0);
+
+        // The original entity should be despawned
+        assert!(world.ecs.query_one_mut::<&Destructible>(entity).is_err());
+
+        // New entities should be spawned
+        let count = world.ecs.query_mut::<(&TransformComponent, &PhysicsComponent)>().into_iter().count();
+        assert!(count > 0, "Fracture should spawn multiple child chunks");
     }
 }
