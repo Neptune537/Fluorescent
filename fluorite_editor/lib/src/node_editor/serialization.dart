@@ -112,20 +112,12 @@ class GraphSerialization {
             print('Emitting PCG payload: ${jsonEncode(pcgPayload)}');
             break;
           case 'HalfPrecisionVFX':
-            // Match previous node mapping for backwards compatibility of fromJson print simulation
-            // In the initial file it mapped spawn_rate, gravity, lifetime, color
-            final spawnRate = (node.properties['spawn_rate'] as num?)?.toDouble() ?? 100.0;
-            final gravity = (node.properties['gravity'] as num?)?.toDouble() ?? -9.81;
-            final lifetime = (node.properties['lifetime'] as num?)?.toDouble() ?? 5.0;
-            final color = node.properties['color'] != null
-                ? List<double>.from((node.properties['color'] as List).map((e) => (e as num).toDouble()))
-                : [1.0, 1.0, 1.0, 1.0];
+            final maxParticles = (node.properties['max_particles'] as num?)?.toInt() ?? 1000;
+            final emitRate = (node.properties['emit_rate'] as num?)?.toDouble() ?? 100.0;
 
             final vfxPayload = {
-              'spawn_rate': spawnRate,
-              'gravity': gravity,
-              'lifetime': lifetime,
-              'color': color,
+              'max_particles': maxParticles,
+              'emit_rate': emitRate,
             };
             // Simulate emitting this payload to the GpuParticleSystem in the Rust rendering core
             print('Emitting VFX payload: ${jsonEncode(vfxPayload)}');

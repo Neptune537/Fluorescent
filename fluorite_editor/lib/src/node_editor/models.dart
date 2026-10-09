@@ -117,9 +117,9 @@ abstract class NodeFactory {
       type: 'MobileOptimizedTerrainPCG',
       position: position,
       properties: {
-        'nanite_error_threshold': 0.05,
-        'chunk_size': 64.0,
-        'biome_type': 'Alpine',
+        'biome_scale': 1.0,
+        'density': 1.0,
+        'seed': 0,
       },
       inputs: [
         NodePin(
@@ -145,8 +145,8 @@ abstract class NodeFactory {
       type: 'HalfPrecisionVFX',
       position: position,
       properties: {
-        'fp16_math': true,
-        'blend_mode': 'Additive',
+        'max_particles': 1000,
+        'emit_rate': 100.0,
       },
       inputs: [
         NodePin(
