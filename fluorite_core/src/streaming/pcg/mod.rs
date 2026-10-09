@@ -18,9 +18,9 @@ impl PcgSystem {
 
     pub fn generate_chunk(
         &self,
-        _chunk_x: i32,
-        _chunk_z: i32,
-        _config: &PcgConfig,
+        chunk_x: i32,
+        chunk_z: i32,
+        config: &PcgConfig,
         command_sender: Option<std::sync::mpsc::Sender<crate::ecs::world::StreamingCommand>>,
     ) {
         use noise::{NoiseFn, Perlin};
@@ -33,8 +33,8 @@ impl PcgSystem {
         let perlin = Perlin::new(self.seed as u32);
 
         // 1. Calculate world coordinates
-        let world_x = (_chunk_x as f32 + 0.5) * chunk_size_meters;
-        let world_z = (_chunk_z as f32 + 0.5) * chunk_size_meters;
+        let world_x = (chunk_x as f32 + 0.5) * chunk_size_meters;
+        let world_z = (chunk_z as f32 + 0.5) * chunk_size_meters;
 
         // 2. Sample noise for heightmap
         let mut heightmap = vec![0.0; 64 * 64];
@@ -44,8 +44,8 @@ impl PcgSystem {
                 let pz = world_z - (chunk_size_meters / 2.0) + (j as f32 / 64.0) * chunk_size_meters;
 
                 let height = perlin.get([
-                    px as f64 * _config.biome_scale as f64,
-                    pz as f64 * _config.biome_scale as f64,
+                    px as f64 * config.biome_scale as f64,
+                    pz as f64 * config.biome_scale as f64,
                 ]) as f32 * 100.0;
 
                 heightmap[i * 64 + j] = height;
@@ -64,14 +64,14 @@ impl PcgSystem {
         }
 
         // 4. Use Poisson Disk Sampling or similar scatter algorithms
-        let mut rng = StdRng::seed_from_u64(self.seed ^ (_chunk_x as u64).wrapping_shl(32) ^ (_chunk_z as u64));
+        let mut rng = StdRng::seed_from_u64(self.seed ^ (chunk_x as u64).wrapping_shl(32) ^ (chunk_z as u64));
         let area = chunk_size_meters * chunk_size_meters;
-        let scatter_count = (area * _config.density) as usize;
-        let _actual_count = rng.gen_range(scatter_count / 2..=scatter_count + (scatter_count / 2).max(1));
+        let scatter_count = (area * config.density) as usize;
+        let actual_count = rng.gen_range(scatter_count / 2..=scatter_count + (scatter_count / 2).max(1));
 
         if let Some(sender) = command_sender {
-            let coord = ChunkCoord::new(_chunk_x, _chunk_z);
-            let _ = sender.send(StreamingCommand::SpawnEntities(coord, _actual_count));
+            let coord = ChunkCoord::new(chunk_x, chunk_z);
+            let _ = sender.send(StreamingCommand::SpawnEntities(coord, actual_count));
         }
     }
 }
