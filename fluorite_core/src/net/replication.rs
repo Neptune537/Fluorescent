@@ -213,3 +213,92 @@ impl ReplicationSystem {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hecs::*;
+
+    struct MockMeshNode {}
+    impl MeshNode for MockMeshNode {
+        fn broadcast(&self, _data: &[u8]) {}
+    }
+
+    #[test]
+    fn test_get_visible_entities() {
+        let mut world = EngineWorld::new();
+
+        let mut t1 = TransformComponent { matrix: [0.0; 16] };
+        t1.matrix[12] = 10.0;
+        let e1 = world.ecs.spawn((t1,));
+
+        let mut t2 = TransformComponent { matrix: [0.0; 16] };
+        t2.matrix[12] = 200.0;
+        let e2 = world.ecs.spawn((t2,));
+
+        let viewer_pos = [0.0, 0.0, 0.0];
+        let radius_sq = 100.0 * 100.0; // 100 units radius
+
+        let visible = ReplicationSystem::get_visible_entities(&world, viewer_pos, radius_sq);
+        assert_eq!(visible.len(), 1);
+        assert_eq!(visible[0], e1);
+    }
+
+    #[test]
+    fn test_apply_network_interpolation_interpolates() {
+        let mut world = EngineWorld::new();
+        let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
+
+        let mut start_transform = TransformComponent { matrix: [0.0; 16] };
+        start_transform.matrix[12] = 0.0; // X = 0
+
+        let mut target_transform = TransformComponent { matrix: [0.0; 16] };
+        target_transform.matrix[12] = 10.0; // X = 10
+
+        let interp = NetworkInterpolationComponent {
+            start_transform,
+            target_transform,
+            velocity: None,
+            start_time: current_time - 0.05, // Started 50ms ago
+            target_time: current_time + 0.05, // Ends in 50ms (total tick 100ms)
+        };
+
+        let e = world.ecs.spawn((start_transform, interp));
+
+        ReplicationSystem::apply_network_interpolation(&mut world);
+
+        let t = world.ecs.get::<TransformComponent>(e).unwrap();
+        // Since we are exactly halfway (50ms elapsed / 100ms tick), X should be 5.0
+        assert!((t.matrix[12] - 5.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_apply_network_interpolation_extrapolates() {
+        let mut world = EngineWorld::new();
+        let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
+
+        let mut start_transform = TransformComponent { matrix: [0.0; 16] };
+        start_transform.matrix[12] = 0.0;
+
+        let mut target_transform = TransformComponent { matrix: [0.0; 16] };
+        target_transform.matrix[12] = 10.0;
+
+        let interp = NetworkInterpolationComponent {
+            start_transform,
+            target_transform,
+            velocity: Some([10.0, 0.0, 0.0]), // moving along X at 10 units/sec
+            start_time: current_time - 0.2, // tick was 100ms
+            target_time: current_time - 0.1, // so it ended 100ms ago -> delta = 200ms, tick = 100ms
+        };
+
+        let e = world.ecs.spawn((target_transform, interp));
+
+        ReplicationSystem::apply_network_interpolation(&mut world);
+
+        let t = world.ecs.get::<TransformComponent>(e).unwrap();
+        // Extrapolation time: 200ms - 100ms = 100ms (0.1s)
+        // Target X was 10.0. Velocity X is 10.0.
+        // New X = 10.0 + 10.0 * 0.1 = 11.0
+        assert!((t.matrix[12] - 11.0).abs() < 0.001);
+    }
+}
