@@ -186,7 +186,10 @@ impl VirtualShadowMapSystem {
                 self.config.resolution_per_page,
                 self.config.resolution_per_page,
             );
-            // Draw call would go here
+
+            // Dispatch shadow rendering compute or render passes to write depth into the physical atlas
+            // Mock draw call to simulate shadow rendering
+            render_pass.draw(0..3, 0..1);
         }
     }
 }
