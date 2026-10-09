@@ -40,9 +40,9 @@ impl ReplicationSystem {
         Self { mesh_node }
     }
 
-    pub fn get_visible_entities(world: &EngineWorld, viewer_position: [f32; 3], radius_sq: f32) -> Vec<hecs::Entity> {
+    pub fn get_visible_entities(world: &EngineWorld, viewer_position: [f32; 3], cull_radius_sq: f32) -> Vec<hecs::Entity> {
         let mut visible = Vec::new();
-        for (entity, transform) in world.ecs.query::<&TransformComponent>().iter() {
+        for (entity, transform) in world.ecs.query_mut::<&TransformComponent>() {
             let pos_x = transform.matrix[12];
             let pos_y = transform.matrix[13];
             let pos_z = transform.matrix[14];
@@ -53,7 +53,7 @@ impl ReplicationSystem {
 
             let dist_sq = dx * dx + dy * dy + dz * dz;
 
-            if dist_sq <= radius_sq {
+            if dist_sq <= cull_radius_sq {
                 visible.push(entity);
             }
         }
@@ -62,11 +62,11 @@ impl ReplicationSystem {
 
     pub fn broadcast_world_state(&self, world: &mut EngineWorld) {
         let mut viewer_position = [0.0, 0.0, 0.0];
-        let visible_radius = 500.0;
-        let radius_sq = visible_radius * visible_radius;
+        let cull_radius = 500.0;
+        let cull_radius_sq = cull_radius * cull_radius;
 
         // Find the local player's position to use as the culling origin
-        for (_entity, (transform, _player)) in world.ecs.query::<(&TransformComponent, &Player)>().iter() {
+        for (_entity, (transform, _player)) in world.ecs.query_mut::<(&TransformComponent, &Player)>() {
             viewer_position[0] = transform.matrix[12];
             viewer_position[1] = transform.matrix[13];
             viewer_position[2] = transform.matrix[14];
@@ -77,13 +77,15 @@ impl ReplicationSystem {
 
         let mut updates = Vec::new();
 
-        let visible_entities = Self::get_visible_entities(world, viewer_position, radius_sq);
+        let visible_entities = Self::get_visible_entities(world, viewer_position, cull_radius_sq);
 
         for entity in visible_entities {
-            if let Ok(transform) = world.ecs.get::<TransformComponent>(entity) {
-                if let Ok(phys) = world.ecs.get::<PhysicsComponent>(entity) {
+            if let Ok(mut transform_q) = world.ecs.query_one::<&TransformComponent>(entity) {
+              if let Some(transform) = transform_q.get() {
+                if let Ok(mut phys_q) = world.ecs.query_one::<&PhysicsComponent>(entity) {
+                  if let Some(phys) = phys_q.get() {
                     updates.push(EntityStateUpdate {
-                        entity_id: entity.to_bits(),
+                        entity_id: entity.to_bits().into(),
                         timestamp: current_time,
                         transform: Some(*transform),
                         physics: Some(*phys),
@@ -111,7 +113,8 @@ impl ReplicationSystem {
                         // Apply transform if present
                         if let Some(t) = update.transform {
                             // We need to clone it because we can't hold a reference while calling insert/get_mut later
-                            let start_transform = if let Ok(current_transform) = world.ecs.get::<TransformComponent>(entity) {
+                            let mut q = world.ecs.query_one::<&TransformComponent>(entity).unwrap();
+                            let start_transform = if let Some(current_transform) = q.get() {
                                 *current_transform
                             } else {
                                 t
@@ -119,7 +122,8 @@ impl ReplicationSystem {
 
                             let mut has_interp = false;
 
-                            if let Ok(mut interp) = world.ecs.get_mut::<NetworkInterpolationComponent>(entity) {
+                            let mut q_interp = world.ecs.query_one::<&mut NetworkInterpolationComponent>(entity).unwrap();
+                            if let Some(interp) = q_interp.get() {
                                 interp.start_transform = start_transform;
                                 interp.target_transform = t;
                                 interp.velocity = update.velocity;
@@ -142,11 +146,6 @@ impl ReplicationSystem {
                                 }
                             }
 
-                            // Since apply_network_interpolation is currently not hooked up to a main game loop,
-                            // we must directly apply the transform here to prevent entities from freezing.
-                            if let Ok(mut current_transform) = world.ecs.get_mut::<TransformComponent>(entity) {
-                                *current_transform = t;
-                            }
                         }
                     }
                 }
@@ -154,7 +153,7 @@ impl ReplicationSystem {
         }
     }
 
-    pub fn apply_network_interpolation(world: &mut EngineWorld) {
+    pub fn extract_network_interpolation(world: &mut EngineWorld) {
         let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
         for (_entity, (transform, interp)) in world.ecs.query_mut::<(&mut TransformComponent, &NetworkInterpolationComponent)>() {
             if interp.target_time <= interp.start_time {
