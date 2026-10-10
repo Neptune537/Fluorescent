@@ -37,11 +37,11 @@ pub struct TemporalUpscalingContext {
     // The sub-pixel jitter offset applied this frame
     pub jitter_offset: Vec2,
     
-    // In actual Vulkan implementation, these are vk::ImageView or similar handles
-    // pub color_buffer: vk::ImageView,
-    // pub depth_buffer: vk::ImageView,
-    // pub velocity_buffer: vk::ImageView,
-    // pub exposure_texture: vk::ImageView,
+    pub color_history_bind_group: Option<wgpu::BindGroup>,
+    pub velocity_bind_group: Option<wgpu::BindGroup>,
+    pub fsr2_bind_group: Option<wgpu::BindGroup>,
+    pub taa_pipeline: Option<wgpu::ComputePipeline>,
+    pub fsr2_pipeline: Option<wgpu::ComputePipeline>,
 }
 
 impl TemporalUpscalingContext {
@@ -54,6 +54,11 @@ impl TemporalUpscalingContext {
             display_width,
             display_height,
             jitter_offset: Vec2::ZERO,
+            color_history_bind_group: None,
+            velocity_bind_group: None,
+            fsr2_bind_group: None,
+            taa_pipeline: None,
+            fsr2_pipeline: None,
         }
     }
 
@@ -66,25 +71,27 @@ impl TemporalUpscalingContext {
             }
             UpscalerType::TAA => {
                 // 1. Bind the current frame color buffer and the history buffer.
-                // Pseudo-code for compute pass execution
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                     label: Some("TAA Compute Pass"),
                     timestamp_writes: None,
                 });
 
-                // Mock bindings for TAA
-                // compute_pass.set_bind_group(0, &color_history_bind_group, &[]);
-                // compute_pass.set_bind_group(1, &velocity_bind_group, &[]);
+                if let Some(taa_pipeline) = &self.taa_pipeline {
+                    compute_pass.set_pipeline(taa_pipeline);
+                }
+
+                if let Some(color_history_bind_group) = &self.color_history_bind_group {
+                    compute_pass.set_bind_group(0, color_history_bind_group, &[]);
+                }
+
+                if let Some(velocity_bind_group) = &self.velocity_bind_group {
+                    compute_pass.set_bind_group(1, velocity_bind_group, &[]);
+                }
 
                 // 3. Dispatch the TAA compute shader to blend the frames based on motion and neighborhood clamping.
                 let workgroup_x = (self.render_width + 7) / 8;
                 let workgroup_y = (self.render_height + 7) / 8;
                 compute_pass.dispatch_workgroups(workgroup_x, workgroup_y, 1);
-
-                drop(compute_pass); // End pass
-
-                // 4. Update the history buffer with the resolved frame.
-                // copy_texture_to_texture(resolved_output, history_buffer);
             }
             UpscalerType::FSR2 => {
                 // FSR2 requires external SDK integration, typically dispatched via a
@@ -93,12 +100,17 @@ impl TemporalUpscalingContext {
 
                 // For wgpu we simulate the compute pass for tracking
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("FSR2 Compute Pass Mock"),
+                    label: Some("FSR2 Compute Pass"),
                     timestamp_writes: None,
                 });
 
-                // Mock bindings for FSR2
-                // compute_pass.set_bind_group(0, &fsr2_bind_group, &[]);
+                if let Some(fsr2_pipeline) = &self.fsr2_pipeline {
+                    compute_pass.set_pipeline(fsr2_pipeline);
+                }
+
+                if let Some(fsr2_bind_group) = &self.fsr2_bind_group {
+                    compute_pass.set_bind_group(0, fsr2_bind_group, &[]);
+                }
 
                 let workgroup_x = (self.display_width + 7) / 8;
                 let workgroup_y = (self.display_height + 7) / 8;

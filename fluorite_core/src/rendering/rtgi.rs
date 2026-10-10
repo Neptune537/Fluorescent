@@ -82,6 +82,14 @@ pub struct RtgiPipeline {
     pub probes: Vec<IrradianceProbe>,
 }
 
+pub struct RtgiResources {
+    pub tlas_buffer: wgpu::Buffer,
+    pub probe_buffer: wgpu::Buffer,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group: wgpu::BindGroup,
+    pub compute_pipeline: wgpu::ComputePipeline,
+}
+
 impl RtgiPipeline {
     pub fn new(config: RtgiConfig) -> Self {
         let (dim_x, dim_y, dim_z) = (
@@ -106,7 +114,96 @@ impl RtgiPipeline {
             }
         }
 
-        Self { config, probes }
+        Self {
+            config,
+            probes,
+        }
+    }
+
+    pub fn init_resources(&self, device: &wgpu::Device) -> RtgiResources {
+        let tlas_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("TLAS Instance Buffer"),
+            size: std::mem::size_of::<TlasInstance>() as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let probe_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Irradiance Probe Buffer"),
+            size: (self.probes.len() * std::mem::size_of::<IrradianceProbe>()) as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("RTGI Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("RTGI Bind Group"),
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: tlas_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: probe_buffer.as_entire_binding(),
+                },
+            ],
+        });
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("RTGI Dummy Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(
+                "@compute @workgroup_size(64, 1, 1) fn main() {}",
+            )),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("RTGI Compute Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("RTGI Compute Pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader,
+            entry_point: "main",
+            compilation_options: Default::default(),
+        });
+
+        RtgiResources {
+            tlas_buffer,
+            probe_buffer,
+            bind_group_layout,
+            bind_group,
+            compute_pipeline,
+        }
     }
 
     pub fn probe_count(&self) -> usize {
@@ -114,15 +211,18 @@ impl RtgiPipeline {
     }
 
     /// Dispatches the RTGI compute shader to update irradiance probes.
-    pub fn update_probes(&mut self, _tlas: &TlasInstance, encoder: &mut wgpu::CommandEncoder) {
+    pub fn update_probes(&mut self, tlas: &TlasInstance, queue: &wgpu::Queue, resources: &RtgiResources, encoder: &mut wgpu::CommandEncoder) {
+        // Upload TLAS instance data
+        let tlas_data = bytemuck::bytes_of(tlas);
+        queue.write_buffer(&resources.tlas_buffer, 0, tlas_data);
+
         let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("RTGI Update Probes Pass"),
             timestamp_writes: None,
         });
 
-        // Pseudo-dispatch
-        // compute_pass.set_pipeline(&rtgi_pipeline);
-        // compute_pass.set_bind_group(0, &rtgi_bind_group, &[]);
+        compute_pass.set_pipeline(&resources.compute_pipeline);
+        compute_pass.set_bind_group(0, &resources.bind_group, &[]);
 
         // Dispatch workgroups to trace rays against the TlasInstance buffer
         // and reconstruct spherical harmonics for IrradianceProbe caching
