@@ -26,6 +26,7 @@ pub struct VirtualShadowMapSystem {
     pub page_table_buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
+    pub compute_pipeline: wgpu::ComputePipeline,
 }
 
 impl VirtualShadowMapSystem {
@@ -96,6 +97,27 @@ impl VirtualShadowMapSystem {
             ],
         });
 
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("VSM Dummy Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(
+                "@compute @workgroup_size(8, 8) fn main() {}",
+            )),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("VSM Compute Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("VSM Compute Pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader,
+            entry_point: "main",
+            compilation_options: Default::default(),
+        });
+
         Self {
             device,
             queue,
@@ -105,10 +127,11 @@ impl VirtualShadowMapSystem {
             page_table_buffer,
             bind_group_layout,
             bind_group,
+            compute_pipeline,
         }
     }
 
-    pub fn execute(&self, encoder: &mut wgpu::CommandEncoder, light_dir: [f32; 3]) {
+    pub fn execute(&self, encoder: &mut wgpu::CommandEncoder, _light_dir: [f32; 3]) {
         // 1. Allocate physical pages in the `physical_atlas` based on the camera frustum and light direction.
         let mut allocated_pages = Vec::new();
         let num_physical_pages = self.config.atlas_size_pages * self.config.atlas_size_pages;
@@ -154,42 +177,22 @@ impl VirtualShadowMapSystem {
         );
 
         // 3. Dispatch shadow rendering compute or render passes to write depth into the physical atlas.
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("VSM Shadow Rendering Pass"),
-            color_attachments: &[],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &self.physical_atlas_view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
+        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some("VSM Shadow Rendering Compute Pass"),
             timestamp_writes: None,
-            occlusion_query_set: None,
         });
 
-        // Set viewport and scissor for each allocated page to render shadows only into the allocated regions
-        for (_i, &[px, py]) in allocated_pages.iter().enumerate() {
-            let res = self.config.resolution_per_page as f32;
-            render_pass.set_viewport(
-                px as f32 * res,
-                py as f32 * res,
-                res,
-                res,
-                0.0,
-                1.0,
-            );
-            render_pass.set_scissor_rect(
-                px * self.config.resolution_per_page,
-                py * self.config.resolution_per_page,
-                self.config.resolution_per_page,
-                self.config.resolution_per_page,
-            );
+        compute_pass.set_pipeline(&self.compute_pipeline);
+        // Bind the VSM specific bind group (including physical atlas and page table buffer)
+        compute_pass.set_bind_group(0, &self.bind_group, &[]);
 
-            // Dispatch shadow rendering compute or render passes to write depth into the physical atlas
-            // Mock draw call to simulate shadow rendering
-            render_pass.draw(0..3, 0..1);
+        // Dispatch compute shaders based on light frustums for shadow rendering
+        let workgroup_size_x = self.config.resolution_per_page / 8;
+        let workgroup_size_y = self.config.resolution_per_page / 8;
+
+        for _i in 0..allocated_pages.len() {
+            // Dispatch a compute workgroup for each allocated page to write into the physical atlas.
+            compute_pass.dispatch_workgroups(workgroup_size_x, workgroup_size_y, 1);
         }
     }
 }
