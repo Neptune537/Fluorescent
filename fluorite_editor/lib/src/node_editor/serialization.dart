@@ -5,41 +5,43 @@ import 'models.dart';
 class GraphSerialization {
   static String toJson(NodeGraph graph) {
     final Map<String, dynamic> data = {
-      'nodes': graph.nodes
-          .map((node) {
-                final Map<String, dynamic> baseData = {
-                  'id': node.id,
-                  'name': node.name,
-                  'type': node.type,
-                  'position': {'x': node.position.dx, 'y': node.position.dy},
-                  'properties': node.properties,
-                };
+      'nodes': graph.nodes.map((node) {
+        final Map<String, dynamic> baseData = {
+          'id': node.id,
+          'name': node.name,
+          'type': node.type,
+          'position': {'x': node.position.dx, 'y': node.position.dy},
+          'properties': node.properties,
+        };
 
-                if (node.type == 'MobileOptimizedTerrainPCG') {
-                  final biomeScale = (node.properties['biome_scale'] as num?)?.toDouble() ?? 1.0;
-                  final density = (node.properties['density'] as num?)?.toDouble() ?? 1.0;
-                  final seed = (node.properties['seed'] as num?)?.toInt() ?? 0;
+        if (node.type == 'MobileOptimizedTerrainPCG') {
+          final biomeScale =
+              (node.properties['biome_scale'] as num?)?.toDouble() ?? 1.0;
+          final density =
+              (node.properties['density'] as num?)?.toDouble() ?? 1.0;
+          final seed = (node.properties['seed'] as num?)?.toInt() ?? 0;
 
-                  baseData['engine_payload'] = {
-                    'config': {
-                      'biome_scale': biomeScale,
-                      'density': density,
-                    },
-                    'seed': seed,
-                  };
-                } else if (node.type == 'HalfPrecisionVFX') {
-                  final maxParticles = (node.properties['max_particles'] as num?)?.toInt() ?? 1000;
-                  final emitRate = (node.properties['emit_rate'] as num?)?.toDouble() ?? 100.0;
+          baseData['engine_payload'] = {
+            'config': {
+              'biome_scale': biomeScale,
+              'density': density,
+            },
+            'seed': seed,
+          };
+        } else if (node.type == 'HalfPrecisionVFX') {
+          final maxParticles =
+              (node.properties['max_particles'] as num?)?.toInt() ?? 1000;
+          final emitRate =
+              (node.properties['emit_rate'] as num?)?.toDouble() ?? 100.0;
 
-                  baseData['engine_payload'] = {
-                    'max_particles': maxParticles,
-                    'emit_rate': emitRate,
-                  };
-                }
+          baseData['engine_payload'] = {
+            'max_particles': maxParticles,
+            'emit_rate': emitRate,
+          };
+        }
 
-                return baseData;
-              })
-          .toList(),
+        return baseData;
+      }).toList(),
       'connections': graph.connections
           .map((conn) => {
                 'from': conn.fromNodeId,
@@ -97,30 +99,26 @@ class GraphSerialization {
 
         switch (type) {
           case 'MobileOptimizedTerrainPCG':
-            final biomeScale = (node.properties['biome_scale'] as num?)?.toDouble() ?? 1.0;
-            final density = (node.properties['density'] as num?)?.toDouble() ?? 1.0;
-            final seed = (node.properties['seed'] as num?)?.toInt() ?? 0;
-
-            final pcgPayload = {
-              'config': {
-                'biome_scale': biomeScale,
-                'density': density,
-              },
-              'seed': seed,
-            };
-            // Simulate emitting this payload via WebSocket or FFI to the Rust engine
-            print('Emitting PCG payload: ${jsonEncode(pcgPayload)}');
+            if (nodeData['engine_payload'] != null) {
+              final payload = nodeData['engine_payload'];
+              if (payload['config'] != null) {
+                node.properties['biome_scale'] =
+                    (payload['config']['biome_scale'] as num?)?.toDouble() ??
+                        1.0;
+                node.properties['density'] =
+                    (payload['config']['density'] as num?)?.toDouble() ?? 1.0;
+              }
+              node.properties['seed'] = (payload['seed'] as num?)?.toInt() ?? 0;
+            }
             break;
           case 'HalfPrecisionVFX':
-            final maxParticles = (node.properties['max_particles'] as num?)?.toInt() ?? 1000;
-            final emitRate = (node.properties['emit_rate'] as num?)?.toDouble() ?? 100.0;
-
-            final vfxPayload = {
-              'max_particles': maxParticles,
-              'emit_rate': emitRate,
-            };
-            // Simulate emitting this payload to the GpuParticleSystem in the Rust rendering core
-            print('Emitting VFX payload: ${jsonEncode(vfxPayload)}');
+            if (nodeData['engine_payload'] != null) {
+              final payload = nodeData['engine_payload'];
+              node.properties['max_particles'] =
+                  (payload['max_particles'] as num?)?.toInt() ?? 1000;
+              node.properties['emit_rate'] =
+                  (payload['emit_rate'] as num?)?.toDouble() ?? 100.0;
+            }
             break;
         }
 
