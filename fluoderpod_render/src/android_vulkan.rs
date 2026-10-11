@@ -130,6 +130,40 @@ pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_creat
     }
 }
 
+// Ray Query Acceleration Structure Builders Scaffold
+pub struct BlasBuilder {
+    pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
+}
+
+impl BlasBuilder {
+    pub fn build(&self, _device: &wgpu::Device, _queue: &wgpu::Queue) -> wgpu::Buffer {
+        // Scaffold for VK_KHR_ray_query BLAS building
+        wgpu::Buffer::new(&wgpu::BufferDescriptor {
+            label: Some("Mock BLAS Buffer"),
+            size: 256,
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        })
+    }
+}
+
+pub struct TlasBuilder {
+    pub instances: Vec<BlasBuilder>,
+}
+
+impl TlasBuilder {
+    pub fn build(&self, _device: &wgpu::Device, _queue: &wgpu::Queue) -> wgpu::Buffer {
+        // Scaffold for VK_KHR_ray_query TLAS building
+        wgpu::Buffer::new(&wgpu::BufferDescriptor {
+            label: Some("Mock TLAS Buffer"),
+            size: 256,
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        })
+    }
+}
+
 pub unsafe fn import_hardware_buffer_to_wgpu(
     device: &wgpu::Device,
     _buffer: *mut AHardwareBuffer,
@@ -139,6 +173,8 @@ pub unsafe fn import_hardware_buffer_to_wgpu(
     device.as_hal::<wgpu_hal::api::Vulkan, _, _>(|hal_device| {
         if let Some(_vk_device) = hal_device {
             // Extension point for direct AHardwareBuffer Vulkan import
+            // Note: Scaffold for ash::extensions::khr::ray_query detection logic can be placed here or during device init.
+            // Example checking: _vk_device.instance().get_device_proc_addr(..)
         }
     });
     None
@@ -315,6 +351,10 @@ pub extern "system" fn Java_com_fluorescent_vulkan_FluorescentVulkanPlugin_start
                 if let Ok(mut r) = renderer_loop.lock() {
                     r.render_frame_to_view(&mut encoder, &view);
                 }
+
+                // Scaffold: Frame Generation / AHardwareBuffer Swapchain integration
+                // Dispatch intermediate frame interpolation compute pass directly into the next AHardwareBuffer
+                // e.g. dispatch_workgroups(...)
 
                 queue_loop.submit(std::iter::once(encoder.finish()));
                 surface_texture.present();

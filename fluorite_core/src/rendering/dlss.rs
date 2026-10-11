@@ -45,7 +45,41 @@ pub struct TemporalUpscalingContext {
 }
 
 impl TemporalUpscalingContext {
-    pub fn new(upscaler_type: UpscalerType, quality: UpscalerQuality, render_width: u32, render_height: u32, display_width: u32, display_height: u32) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        upscaler_type: UpscalerType,
+        quality: UpscalerQuality,
+        render_width: u32,
+        render_height: u32,
+        display_width: u32,
+        display_height: u32
+    ) -> Self {
+        let taa_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("TAA Compute Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/taa_compute.wgsl").into()),
+        });
+
+        let taa_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("TAA Pipeline"),
+            layout: None,
+            module: &taa_shader,
+            entry_point: "main",
+            compilation_options: Default::default(),
+        });
+
+        let fsr2_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("FSR2 Compute Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shaders/fsr_compute.wgsl").into()),
+        });
+
+        let fsr2_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("FSR2 Pipeline"),
+            layout: None,
+            module: &fsr2_shader,
+            entry_point: "main",
+            compilation_options: Default::default(),
+        });
+
         Self {
             upscaler_type,
             quality,
@@ -57,8 +91,8 @@ impl TemporalUpscalingContext {
             color_history_bind_group: None,
             velocity_bind_group: None,
             fsr2_bind_group: None,
-            taa_pipeline: None,
-            fsr2_pipeline: None,
+            taa_pipeline: Some(taa_pipeline),
+            fsr2_pipeline: Some(fsr2_pipeline),
         }
     }
 
