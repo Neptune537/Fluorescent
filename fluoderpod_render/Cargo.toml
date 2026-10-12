@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # Default keeps today's behaviour: everything builds.
-default = ["nexus", "reticulum", "webrtc-stream", "xr"]
+default = ["nexus", "reticulum", "webrtc-stream", "xr", "fluoridian"]
 # Minimal Android render build: wgpu(+hal) / ash / tokio-rt / jni / ndk / ndk-sys only.
 #   cargo ndk ... build --release --no-default-features --features android-render
 android-render = []
@@ -23,6 +23,8 @@ reticulum = ["dep:reticulum"]
 webrtc-stream = ["nexus", "dep:webrtc", "dep:bytes", "dep:futures-util"]
 # OpenXR session support.
 xr = ["dep:openxr"]
+# Official Fluoridian Protocol & Telemetry integration
+fluoridian = ["dep:fluoridian-core"]
 [dependencies]
 wgpu = "0.20.1"
 bytemuck = { version = "1.16", features = ["derive"] }
@@ -33,6 +35,7 @@ serde_json = "1.0.100"
 bytes = { version = "1.12.1", optional = true }
 wgpu-hal = { version = "0.21.1", features = ["vulkan"] }
 raw-window-handle = "0.6"
+fluoridian-core = { package = "rust_core", path = "../third_party/tithX/rust_core", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = "0.3"

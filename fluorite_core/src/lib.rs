@@ -23,6 +23,7 @@ pub mod ecs;
 pub mod ffi;
 pub mod fluoropod;
 pub mod frb_generated;
+pub use fluoridian_core;
 pub mod jni;
 pub mod physics;
 pub mod rendering;

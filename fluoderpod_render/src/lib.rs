@@ -9,6 +9,11 @@ pub mod thermal;
 pub mod entity_packet;
 pub mod geofencing;
 
+#[cfg(feature = "fluoridian")]
+pub mod fluoridian_bridge {
+    pub use fluoridian_core;
+}
+
 /// The main entry point for the fluoderpod GPU-driven render graph.
 pub struct FluoderpodRenderer {
     // The unified pipeline manager handles wgpu device/queue
