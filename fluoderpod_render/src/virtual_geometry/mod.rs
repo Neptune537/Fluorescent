@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 pub mod globe;
+pub use globe::{
+    CubeFace, FloatingOriginCamera, GpuTerrainPatch, MultiScalePhase, MultiScaleState,
+    PatchKey, QuadtreeGlobe, TileIndex, EARTH_RADIUS_WGS84,
+};
 
 /// Virtual Geometry (Nanite-style) cluster evaluation.
 
