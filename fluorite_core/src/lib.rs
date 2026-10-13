@@ -83,3 +83,8 @@ pub use streaming::{
     ChunkCoord, ChunkState, FeedbackBuffer, PageCoord, PageTableEntry, StreamingChunk,
     StreamingConfig, StreamingPriority, VirtualTextureSystem, WorldStreamingManager,
 };
+
+pub use fluoridian_core::fluoderpod::cesium::{
+    CesiumCartesian3, CesiumCartographic, CesiumImageryProvider, CesiumMapConfig,
+    CesiumRoutePlan, CesiumRouteWaypoint, CesiumTerrainProvider, CzmlPacket, FpsKeyframe,
+};

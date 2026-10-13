@@ -12,6 +12,36 @@ impl GeographicPosition {
     pub fn new(lat: f64, lon: f64, alt: f64) -> Self {
         Self { lat, lon, alt }
     }
+
+    /// Converts this geographic coordinate to a Cesium Cartesian3 ECEF vector.
+    pub fn to_cesium_cartesian3(&self) -> fluoridian_core::fluoderpod::cesium::CesiumCartesian3 {
+        fluoridian_core::fluoderpod::cesium::CesiumCartesian3::from_degrees(self.lon, self.lat, self.alt)
+    }
+
+    /// Converts this geographic coordinate to a Cesium Cartographic representation.
+    pub fn to_cesium_cartographic(&self) -> fluoridian_core::fluoderpod::cesium::CesiumCartographic {
+        fluoridian_core::fluoderpod::cesium::CesiumCartographic {
+            longitude: self.lon,
+            latitude: self.lat,
+            height: self.alt,
+        }
+    }
+
+    /// Converts this coordinate into a lightweight CZML packet for streaming to CesiumJS.
+    pub fn to_czml_packet(
+        &self,
+        node_id: &str,
+        is_relay: bool,
+    ) -> fluoridian_core::fluoderpod::cesium::CzmlPacket {
+        fluoridian_core::fluoderpod::cesium::CzmlPacket::from_peer_node(
+            node_id,
+            self.lat,
+            self.lon,
+            self.alt,
+            is_relay,
+            None,
+        )
+    }
 }
 
 /// The visibility level of an entity, useful for privacy filtering.
@@ -84,5 +114,14 @@ impl WorldEntity {
             appearance,
             metadata: std::collections::HashMap::new(),
         }
+    }
+
+    /// Converts the WorldEntity into a streaming CZML packet for CesiumJS rendering.
+    pub fn to_czml_packet(&self) -> fluoridian_core::fluoderpod::cesium::CzmlPacket {
+        let is_relay = match self.controller {
+            Controller::Human | Controller::Ai => false,
+            Controller::None => true,
+        };
+        self.geographic_position.to_czml_packet(&self.id.to_string(), is_relay)
     }
 }
