@@ -205,7 +205,6 @@ Matcher isNull = (actual, reason) {
     throw TestAssertionError(
       message: reason ?? 'Expected null, but got $actual',
       actual: actual,
-      expected: null,
     );
   }
 };
@@ -214,7 +213,6 @@ Matcher isNotNull = (actual, reason) {
   if (actual == null) {
     throw TestAssertionError(
       message: reason ?? 'Expected not null, but got null',
-      actual: null,
       expected: 'non-null object',
     );
   }

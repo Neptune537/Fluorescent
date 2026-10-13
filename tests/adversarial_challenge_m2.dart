@@ -5,7 +5,6 @@
 // - C-ABI symbol contracts and memory safety
 // - Contract robustness: empty buffers, oversized allocations, repeated start_engine
 
-import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -136,7 +135,7 @@ void main() {
       throw 'Engine should be uninitialized before startEngine(config: null)';
     }
 
-    final statusStarted = startEngine(config: null);
+    final statusStarted = startEngine();
     if (!statusStarted.isInitialized) {
       throw 'Engine should be initialized after startEngine(config: null)';
     }
@@ -215,9 +214,9 @@ void main() {
 
   test('EMPIRICAL CHALLENGE: Multiple start_engine calls and frame index divergence', () {
     RustLib.resetForTesting();
-    final s1 = startEngine(config: null);
+    final s1 = startEngine();
     final f1 = s1.frameIndex;
-    final s2 = startEngine(config: null);
+    final s2 = startEngine();
     final f2 = s2.frameIndex;
 
     print('    startEngine(config: null) #1 frameIndex: $f1, #2 frameIndex: $f2');
@@ -234,8 +233,8 @@ void main() {
 
   test('EMPIRICAL CHALLENGE: Oversized allocation exceeding arena capacity', () {
     RustLib.resetForTesting();
-    startEngine(config: null);
-    final oversized = 32 * 1024 * 1024; // 32MB > 16MB arena capacity
+    startEngine();
+    const oversized = 32 * 1024 * 1024; // 32MB > 16MB arena capacity
     final buf = allocateEngineBuffer(sizeBytes: oversized);
     if (buf.length != oversized) throw 'Expected buffer size $oversized';
 

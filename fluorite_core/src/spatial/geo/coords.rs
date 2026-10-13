@@ -71,6 +71,28 @@ pub fn lat_lon_alt_to_enu(
     ecef_to_enu(x, y, z, ref_lat, ref_lon, ref_alt)
 }
 
+/// Convert Geographic coordinates to a Cesium Cartesian3 ECEF representation.
+pub fn lat_lon_alt_to_cesium_cartesian3(
+    lat: f64,
+    lon: f64,
+    alt: f64,
+) -> fluoridian_core::fluoderpod::cesium::CesiumCartesian3 {
+    fluoridian_core::fluoderpod::cesium::CesiumCartesian3::from_degrees(lon, lat, alt)
+}
+
+/// Convert Geographic coordinates to a Cesium Cartographic point.
+pub fn lat_lon_alt_to_cesium_cartographic(
+    lat: f64,
+    lon: f64,
+    alt: f64,
+) -> fluoridian_core::fluoderpod::cesium::CesiumCartographic {
+    fluoridian_core::fluoderpod::cesium::CesiumCartographic {
+        longitude: lon,
+        latitude: lat,
+        height: alt,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

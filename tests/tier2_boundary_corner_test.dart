@@ -5,7 +5,6 @@
 // - Phase 1: 0 bytes, 1 byte, exact 1MB, power-of-two boundaries, alignment boundaries 1..64, capacity saturation.
 // - Phase 2: 1024+ lights, empty scenes, degenerate bounds, extreme timesteps, gimbal lock, grazing angles.
 
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'e2e_test_harness.dart';
 import 'fluorite_bridge_model.dart';
@@ -231,7 +230,7 @@ void registerTier2Tests() {
     });
 
     TestHarness.test('test_t2_f5_pbr_metallic_extremes_dielectric_and_metal', () {
-      const dielectric = PbrMaterial(metallic: 0.0);
+      const dielectric = PbrMaterial();
       const pureMetal = PbrMaterial(metallic: 1.0);
 
       final outDielectric = PbrRenderer.evaluateCookTorrance(
@@ -255,7 +254,7 @@ void registerTier2Tests() {
     });
 
     TestHarness.test('test_t2_f5_grazing_angle_ndotv_near_zero', () {
-      const mat = PbrMaterial(roughness: 0.5);
+      const mat = PbrMaterial();
       // View direction nearly orthogonal to surface normal (grazing angle)
       final radiance = PbrRenderer.evaluateCookTorrance(
         material: mat,
@@ -322,7 +321,7 @@ void registerTier2Tests() {
       final grid = ClusteredForwardGrid();
       final lights = List.generate(
         1200,
-        (i) => DynamicLight(id: i, type: LightType.point, position: Vec3(0, 0, -50.0)),
+        (i) => DynamicLight(id: i, type: LightType.point, position: const Vec3(0, 0, -50.0)),
       );
 
       final assigned = grid.assignLights(lights);
@@ -351,7 +350,7 @@ void registerTier2Tests() {
     });
 
     TestHarness.test('test_t2_f6_lights_outside_depth_range_culled', () {
-      final grid = ClusteredForwardGrid(nearPlane: 0.1, farPlane: 1000.0);
+      final grid = ClusteredForwardGrid();
       final lights = [
         // Behind near plane (z > -0.1)
         const DynamicLight(id: 1, type: LightType.point, position: Vec3(0, 0, 50.0), range: 1.0),
@@ -490,7 +489,7 @@ void registerTier2Tests() {
     });
 
     TestHarness.test('test_t2_f8_kcc_steep_slope_unclimbable_sliding', () {
-      final kcc = KinematicCharacterControllerModel(autostepHeight: 0.35);
+      final kcc = KinematicCharacterControllerModel();
       final highObstacle = [
         const Aabb(Vec3(0.5, 0, -1), Vec3(1.5, 2.0, 1)), // 2.0m wall (> 0.35m)
       ];

@@ -98,6 +98,14 @@ pub fn decode_to_gpu_instances(bytes: &[u8]) -> Result<Vec<PackedEntityInstance>
     Ok(decode_packets(bytes)?.iter().map(|p| p.to_gpu_instance()).collect())
 }
 
+#[cfg(feature = "fluoridian")]
+/// Ingests a batch of Fluoridian simulation instances directly into GPU packed instances.
+pub fn decode_fluoridian_batch(
+    instances: &[fluoridian_core::fluoderpod_render::packed_instance::PackedEntityInstance],
+) -> Vec<PackedEntityInstance> {
+    instances.iter().copied().map(PackedEntityInstance::from).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

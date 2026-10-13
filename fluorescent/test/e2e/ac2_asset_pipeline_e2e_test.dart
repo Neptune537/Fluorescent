@@ -41,7 +41,7 @@ String createTestGltfJson() {
     byteData.setFloat32(offset, positions[i], Endian.little);
     offset += 4;
   }
-  final posOffset = 0;
+  const posOffset = 0;
   final posLen = positions.lengthInBytes;
 
   // Normals

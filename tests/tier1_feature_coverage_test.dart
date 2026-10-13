@@ -5,7 +5,6 @@
 // - Phase 1: Allocators, Zero-Copy Buffers, FFI Bridge, Desktop Editor
 // - Phase 2: PBR & Shadows, Clustered Forward+, BVH Spatial Partitioning, Rapier3D Physics, Desktop Viewport
 
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'e2e_test_harness.dart';
 import 'fluorite_bridge_model.dart';
@@ -131,7 +130,7 @@ void registerTier1Tests() {
       final controller = EngineControllerModel();
       expect(controller.state, equals(EngineState.uninitialized));
 
-      await controller.startEngine(config: null);
+      await controller.startEngine();
       expect(controller.state, equals(EngineState.running));
       expect(controller.status, isNotNull);
       expect(controller.status!.isInitialized, isTrue);
@@ -148,7 +147,7 @@ void registerTier1Tests() {
 
     TestHarness.test('test_t1_f3_get_engine_status', () async {
       final controller = EngineControllerModel();
-      await controller.startEngine(config: null);
+      await controller.startEngine();
       await controller.allocate1MB();
 
       final status = controller.status!;
@@ -191,7 +190,7 @@ void registerTier1Tests() {
 
     TestHarness.test('test_t1_f4_editor_controller_start_engine', () async {
       final controller = EngineControllerModel();
-      await controller.startEngine(config: null);
+      await controller.startEngine();
       expect(controller.state, equals(EngineState.running));
       expect(controller.status!.isInitialized, isTrue);
     });
@@ -209,7 +208,7 @@ void registerTier1Tests() {
 
     TestHarness.test('test_t1_f4_editor_controller_reset', () async {
       final controller = EngineControllerModel();
-      await controller.startEngine(config: null);
+      await controller.startEngine();
       await controller.allocate1MB();
 
       controller.reset();
@@ -220,7 +219,7 @@ void registerTier1Tests() {
 
     TestHarness.test('test_t1_f4_hex_memory_inspector_formatting', () {
       final buffer = allocateEngineBuffer(64);
-      final lines = formatHexInspector(buffer, offset: 0, length: 64);
+      final lines = formatHexInspector(buffer);
 
       expect(lines.length, equals(4));
       expect(lines[0].contains('AA'), isTrue);
@@ -245,7 +244,6 @@ void registerTier1Tests() {
         viewDir: const Vec3(0, 1, 1),
         lightDir: const Vec3(0, 1, 1),
         lightColor: const Vec3(1, 1, 1),
-        lightIntensity: 1.0,
       );
 
       expect(radiance.x, greaterThan(0.0), reason: 'PBR red component must be illuminated');
@@ -254,8 +252,8 @@ void registerTier1Tests() {
     });
 
     TestHarness.test('test_t1_f5_pbr_metallic_vs_dielectric_fresnel', () {
-      const dielectric = PbrMaterial(metallic: 0.0, roughness: 0.5, baseColor: Vec4(0.8, 0.8, 0.8, 1.0));
-      const metal = PbrMaterial(metallic: 1.0, roughness: 0.5, baseColor: Vec4(0.8, 0.8, 0.8, 1.0));
+      const dielectric = PbrMaterial(baseColor: Vec4(0.8, 0.8, 0.8, 1.0));
+      const metal = PbrMaterial(metallic: 1.0, baseColor: Vec4(0.8, 0.8, 0.8, 1.0));
 
       final outDielectric = PbrRenderer.evaluateCookTorrance(
         material: dielectric,
@@ -295,7 +293,7 @@ void registerTier1Tests() {
       const orthoSize = 100.0;
       final snapped = PbrRenderer.snapToTexel(lightPos, res, orthoSize);
 
-      final texelSize = (2.0 * orthoSize) / res;
+      const texelSize = (2.0 * orthoSize) / res;
       final remX = (snapped.x / texelSize) - (snapped.x / texelSize).roundToDouble();
       final remY = (snapped.y / texelSize) - (snapped.y / texelSize).roundToDouble();
 
@@ -327,7 +325,7 @@ void registerTier1Tests() {
     });
 
     TestHarness.test('test_t1_f6_logarithmic_depth_slicing', () {
-      final grid = ClusteredForwardGrid(nearPlane: 0.1, farPlane: 1000.0);
+      final grid = ClusteredForwardGrid();
       final z0Near = grid.getDepthSliceNear(0);
       final zLastFar = grid.getDepthSliceFar(23);
 
@@ -358,7 +356,6 @@ void registerTier1Tests() {
           id: 1,
           type: LightType.directional,
           position: Vec3(0, 100, 0),
-          direction: Vec3(0, -1, 0),
         ),
       ];
 
@@ -378,7 +375,6 @@ void registerTier1Tests() {
           id: i,
           type: LightType.point,
           position: Vec3(i % 20 - 10, 0, -50.0),
-          range: 10.0,
         ),
       );
 
@@ -525,7 +521,7 @@ void registerTier1Tests() {
     });
 
     TestHarness.test('test_t1_f8_kinematic_character_controller_autostep', () {
-      final kcc = KinematicCharacterControllerModel(autostepHeight: 0.35);
+      final kcc = KinematicCharacterControllerModel();
       final obstacles = [
         const Aabb(Vec3(0.5, 0, -1), Vec3(1.5, 0.25, 1)), // 0.25m stair step
       ];
@@ -615,7 +611,7 @@ void registerTier1Tests() {
     });
 
     TestHarness.test('test_t1_f9_zero_copy_texture_sharing_pipeline', () {
-      final pipeline = ZeroCopyTexturePipelineModel(textureId: 42);
+      final pipeline = ZeroCopyTexturePipelineModel();
       final frameData = Uint8List(1024);
       frameData.fillRange(0, 1024, 0x33);
 

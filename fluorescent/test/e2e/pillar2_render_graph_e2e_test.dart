@@ -98,19 +98,19 @@ void defineTests() {
       final cyclicGraph = RenderGraph();
 
       // Pass A depends on Pass C
-      cyclicGraph.addPass(RenderPassDescriptor(
+      cyclicGraph.addPass(const RenderPassDescriptor(
         name: 'PassA',
         dependencies: ['PassC'],
       ));
 
       // Pass B depends on Pass A
-      cyclicGraph.addPass(RenderPassDescriptor(
+      cyclicGraph.addPass(const RenderPassDescriptor(
         name: 'PassB',
         dependencies: ['PassA'],
       ));
 
       // Pass C depends on Pass B (Cycle: A -> C -> B -> A)
-      cyclicGraph.addPass(RenderPassDescriptor(
+      cyclicGraph.addPass(const RenderPassDescriptor(
         name: 'PassC',
         dependencies: ['PassB'],
       ));
@@ -131,7 +131,7 @@ void defineTests() {
       final incompleteGraph = RenderGraph();
 
       // Pass references non-existent dependency 'NonExistentPass'
-      incompleteGraph.addPass(RenderPassDescriptor(
+      incompleteGraph.addPass(const RenderPassDescriptor(
         name: 'MainPass',
         dependencies: ['NonExistentPass'],
       ));

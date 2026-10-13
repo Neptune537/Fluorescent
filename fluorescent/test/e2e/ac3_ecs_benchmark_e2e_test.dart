@@ -13,11 +13,6 @@ void defineTests() {
         world.transforms.set(
           entity,
           x: i * 1.0,
-          y: 0.0,
-          z: 0.0,
-          sx: 1.0,
-          sy: 1.0,
-          sz: 1.0,
         );
         return entity;
       }, growable: false);
@@ -65,7 +60,7 @@ void defineTests() {
 
       for (int i = 0; i < 5000; i++) {
         final entity = world.createEntity();
-        world.transforms.set(entity, x: i * 2.0, y: 1.0, z: 0.0);
+        world.transforms.set(entity, x: i * 2.0, y: 1.0);
         entities.add(entity);
       }
 
@@ -103,14 +98,13 @@ void defineTests() {
 
     test('E2E-AC3-003: Contiguous TransformStorage 16-float stride layout and direct buffer access', () {
       final storage = TransformStorage(initialCapacity: 16);
-      final e1 = Entity(10);
-      final e2 = Entity(20);
+      const e1 = Entity(10);
+      const e2 = Entity(20);
 
       storage.set(
         e1,
         x: 10.0, y: 20.0, z: 30.0,
-        flags: TransformFlags.dirty,
-        qx: 0.0, qy: 0.0, qz: 0.707, qw: 0.707,
+        flags: TransformFlags.dirty, qz: 0.707, qw: 0.707,
         sx: 2.0, sy: 2.0, sz: 2.0,
         boundsRadius: 5.0,
       );
@@ -118,7 +112,6 @@ void defineTests() {
       storage.set(
         e2,
         x: -5.0, y: -10.0, z: -15.0,
-        sx: 1.0, sy: 1.0, sz: 1.0,
       );
 
       expect(storage.count, equals(2));

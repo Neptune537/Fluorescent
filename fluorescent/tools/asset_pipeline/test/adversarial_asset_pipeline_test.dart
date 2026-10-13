@@ -4,10 +4,10 @@ import 'dart:typed_data';
 import 'package:test/test.dart';
 
 import '../bin/asset_pipeline.dart' as cli;
-import '../lib/fworld_writer.dart';
-import '../lib/gltf_compiler.dart';
-import '../lib/shader_toolchain/demo_transpiler.dart';
-import '../lib/shader_toolchain/naga_ffi.dart';
+import 'package:asset_pipeline/fworld_writer.dart';
+import 'package:asset_pipeline/gltf_compiler.dart';
+import 'package:asset_pipeline/shader_toolchain/demo_transpiler.dart';
+import 'package:asset_pipeline/shader_toolchain/naga_ffi.dart';
 
 /// Helper to generate a minimal valid glTF 2.0 JSON string.
 String createTestGltfJson() {
@@ -452,7 +452,6 @@ void main() {
     test('corrupted zlib payload throws exception cleanly without native crash', () {
       final valid = FWorldWriter.serialize(
         worldName: 'TestZlib',
-        compression: FWorldCompression.zlib,
       );
       final corrupted = Uint8List.fromList(valid);
 

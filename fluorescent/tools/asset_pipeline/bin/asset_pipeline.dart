@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
-import '../lib/fworld_writer.dart';
-import '../lib/gltf_compiler.dart';
-import '../lib/shader_toolchain/naga_ffi.dart';
-import '../lib/shader_toolchain/shader_transpiler.dart';
+import 'package:asset_pipeline/fworld_writer.dart';
+import 'package:asset_pipeline/gltf_compiler.dart';
+import 'package:asset_pipeline/shader_toolchain/naga_ffi.dart';
+import 'package:asset_pipeline/shader_toolchain/shader_transpiler.dart';
 
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()

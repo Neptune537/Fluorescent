@@ -11,7 +11,6 @@
 //   - Entity Inspector + Live Physics & ECS Transform Sync
 //   - Zero-Copy Texture Pipeline + PBR Frame Submission
 
-import 'dart:math' as math;
 import 'dart:typed_data';
 import 'e2e_test_harness.dart';
 import 'fluorite_bridge_model.dart';
@@ -85,7 +84,6 @@ void registerTier3Tests() {
 
     TestHarness.test('test_t3_pbr_with_dynamic_lights_and_shadows', () {
       const mat = PbrMaterial(
-        baseColor: Vec4(1.0, 1.0, 1.0, 1.0),
         metallic: 0.5,
         roughness: 0.3,
       );
@@ -97,7 +95,6 @@ void registerTier3Tests() {
         viewDir: const Vec3(0, 1, 1),
         lightDir: const Vec3(0, 1, 1),
         lightColor: const Vec3(1, 1, 1),
-        shadowFactor: 1.0,
       );
 
       // Fully shadowed radiance
@@ -166,12 +163,11 @@ void registerTier3Tests() {
       final cam = CameraControllerModel();
       cam.updateOrbit(deltaYaw: 1.57); // Turn 90 degrees
 
-      final grid = ClusteredForwardGrid(nearPlane: 0.1, farPlane: 500.0);
-      final light = const DynamicLight(
+      final grid = ClusteredForwardGrid(farPlane: 500.0);
+      const light = DynamicLight(
         id: 1,
         type: LightType.point,
         position: Vec3(50, 0, 0),
-        range: 10.0,
       );
 
       final assigned = grid.assignLights([light]);

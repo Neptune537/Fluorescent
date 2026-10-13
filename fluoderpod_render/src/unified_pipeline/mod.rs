@@ -29,6 +29,19 @@ const _: () = assert!(std::mem::size_of::<PackedEntityInstance>() == 48);
 
 /// Type alias for backward compatibility.
 pub type EntityInstance = PackedEntityInstance;
+
+#[cfg(feature = "fluoridian")]
+impl From<fluoridian_core::fluoderpod_render::packed_instance::PackedEntityInstance> for PackedEntityInstance {
+    fn from(f: fluoridian_core::fluoderpod_render::packed_instance::PackedEntityInstance) -> Self {
+        Self {
+            position: f.position,
+            sphere_radius: 1.0,
+            rotation_quat: f.orientation,
+            scale: [1.0, 1.0, 1.0],
+            cluster_and_flags: ((f.entity_type as u32) << 16) | (f.flags as u32),
+        }
+    }
+}
 pub struct PipelineManager {
     pub device: Arc<wgpu::Device>,
     pub queue: Arc<wgpu::Queue>,

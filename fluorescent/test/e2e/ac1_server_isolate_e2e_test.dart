@@ -21,7 +21,7 @@ void defineTests() {
       expect(manager.isInitialized, isFalse);
       expect(manager.isDisposed, isFalse);
 
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: false);
+      await manager.initialize(startTickLoop: false);
 
       expect(manager.isInitialized, isTrue);
       expect(manager.isDisposed, isFalse);
@@ -30,7 +30,7 @@ void defineTests() {
     });
 
     test('E2E-AC1-002: Main thread event loop remains non-blocking during high-volume Isolate messaging', () async {
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: false);
+      await manager.initialize(startTickLoop: false);
 
       // Track main thread responsiveness via periodic microtasks
       int mainThreadTicks = 0;
@@ -44,7 +44,6 @@ void defineTests() {
 
       for (int i = 0; i < 1000; i++) {
         final bodyId = manager.physics.createBody(
-          type: PhysicsBodyType.rigid,
           spaceId: spaceId,
         );
         bodyIds.add(bodyId);
@@ -68,11 +67,10 @@ void defineTests() {
     });
 
     test('E2E-AC1-003: Asynchronous queries over Isolate boundary resolve with exact values', () async {
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: false);
+      await manager.initialize(startTickLoop: false);
 
       final spaceId = manager.physics.createSpace();
       final bodyId = manager.physics.createBody(
-        type: PhysicsBodyType.rigid,
         spaceId: spaceId,
       );
 
@@ -105,7 +103,7 @@ void defineTests() {
     });
 
     test('E2E-AC1-004: NavigationServer performs pathfinding queries concurrently on background Isolate', () async {
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: false);
+      await manager.initialize(startTickLoop: false);
 
       final mapId = manager.navigation.createMap();
       final regionId = manager.navigation.createRegion(mapId);
@@ -133,7 +131,7 @@ void defineTests() {
 
     test('E2E-AC1-005: Simulation tick updates broadcast from background Isolate to main isolate', () async {
       // Start manager with active tick loop (60 Hz)
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: true);
+      await manager.initialize();
 
       final updateCompleter = Completer<ServerTickUpdate>();
       late StreamSubscription sub;
@@ -153,7 +151,7 @@ void defineTests() {
     });
 
     test('E2E-AC1-006: ServerManager cleans up background Isolate resources on dispose()', () async {
-      await manager.initialize(tickRateHz: 60.0, startTickLoop: false);
+      await manager.initialize(startTickLoop: false);
       expect(manager.isInitialized, isTrue);
 
       await manager.dispose();

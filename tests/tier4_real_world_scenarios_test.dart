@@ -235,8 +235,6 @@ void registerTier4Tests() {
             ((i ~/ 32) % 4) * 3.0,
             -((i ~/ 128) * 10.0 + 1.0),
           ),
-          color: const Vec3(1, 1, 1),
-          intensity: 1.0,
           range: 8.0,
         ),
       );
@@ -268,8 +266,7 @@ void registerTier4Tests() {
 
     TestHarness.test('test_t4_scenario10_kcc_navigation_dynamic_environment', () {
       final kcc = KinematicCharacterControllerModel(
-        autostepHeight: 0.35,
-        maxSlopeAngleDegrees: 45.0,
+        
       );
 
       // Complex obstacle course: stairs + wall

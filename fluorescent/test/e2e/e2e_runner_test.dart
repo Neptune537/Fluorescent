@@ -77,7 +77,7 @@ Future<void> main(List<String> args) async {
 
   for (final s in summaries) {
     final nameCol = s.suiteName.length > 50
-        ? s.suiteName.substring(0, 47) + '...'
+        ? '${s.suiteName.substring(0, 47)}...'
         : s.suiteName.padRight(50);
     final resultCol = s.allPassed ? ' PASS ' : '!FAIL!';
     final testsCol = '${s.passed}/${s.total}'.padLeft(5);

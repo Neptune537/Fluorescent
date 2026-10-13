@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 import 'package:fluorescent_core/fluorescent_core.dart';
 import 'package:fluorescent_flame/src/components/fluorescent_viewport.dart';
-import 'package:flutter_test/flutter_test.dart';
 
 class MockCanvas implements Canvas {
   @override

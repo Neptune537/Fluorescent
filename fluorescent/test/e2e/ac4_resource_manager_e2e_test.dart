@@ -22,7 +22,6 @@ void defineTests() {
         'mock_albedo',
         width: 512,
         height: 512,
-        format: 'rgba8unorm',
         onDispose: (_) => onDisposeCallbackFired = true,
       );
 
@@ -87,8 +86,8 @@ void defineTests() {
     });
 
     test('E2E-AC4-003: Cascading release clears child texture references when material is destroyed', () async {
-      final diffuse = await resourceManager.loadMockTexture('mat_diffuse', width: 256, height: 256);
-      final normal = await resourceManager.loadMockTexture('mat_normal', width: 256, height: 256);
+      final diffuse = await resourceManager.loadMockTexture('mat_diffuse');
+      final normal = await resourceManager.loadMockTexture('mat_normal');
 
       // Both textures initially have refCount = 1
       expect(diffuse.refCount, equals(1));

@@ -742,16 +742,16 @@ class PbrRenderer {
 
     // 2. Schlick Fresnel Approximation (F)
     // Dielectrics use F0 = 0.04; Metals use baseColor.xyz
-    final f0_rgb = Vec3(
+    final f0Rgb = Vec3(
       _lerp(0.04, material.baseColor.x, material.metallic),
       _lerp(0.04, material.baseColor.y, material.metallic),
       _lerp(0.04, material.baseColor.z, material.metallic),
     );
     final fTerm = math.pow(1.0 - VdotH, 5.0).toDouble();
     final F = Vec3(
-      f0_rgb.x + (1.0 - f0_rgb.x) * fTerm,
-      f0_rgb.y + (1.0 - f0_rgb.y) * fTerm,
-      f0_rgb.z + (1.0 - f0_rgb.z) * fTerm,
+      f0Rgb.x + (1.0 - f0Rgb.x) * fTerm,
+      f0Rgb.y + (1.0 - f0Rgb.y) * fTerm,
+      f0Rgb.z + (1.0 - f0Rgb.z) * fTerm,
     );
 
     // 3. Smith Joint Masking-Shadowing Function (G)

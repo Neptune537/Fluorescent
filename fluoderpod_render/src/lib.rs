@@ -12,6 +12,8 @@ pub mod geofencing;
 #[cfg(feature = "fluoridian")]
 pub mod fluoridian_bridge {
     pub use fluoridian_core;
+    pub use fluoridian_core::fluoderpod::cesium::*;
+    pub use fluoridian_core::fluoderpod_render::packed_instance::PackedEntityInstance as FluoridianPackedInstance;
 }
 
 /// The main entry point for the fluoderpod GPU-driven render graph.
