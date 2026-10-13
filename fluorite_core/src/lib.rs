@@ -48,6 +48,8 @@ pub use ai::{
 };
 
 pub use animation::{solve_fabrik, solve_two_bone_ik, IkJoint, TwoBoneIkResult};
+pub use ecs::bevy_adapter::{BevyEngineWorld, TransformSyncPacket};
+pub use ecs::reflection::EngineTypeRegistry;
 
 pub use audio::{
     AcousticMaterial, AcousticRay, AcousticResult, AcousticTracer, SoundEmitter, SoundListener,

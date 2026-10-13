@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Represents a physical location on the Earth using WGS84.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, bevy_reflect::Reflect, bevy_ecs::component::Component)]
 pub struct GeographicPosition {
     pub lat: f64,
     pub lon: f64,
@@ -15,7 +15,7 @@ impl GeographicPosition {
 }
 
 /// The visibility level of an entity, useful for privacy filtering.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, bevy_reflect::Reflect)]
 pub enum Visibility {
     Exact,
     Approximate,
@@ -25,7 +25,7 @@ pub enum Visibility {
 }
 
 /// Defines what controls the entity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, bevy_reflect::Reflect)]
 pub enum Controller {
     Human,
     Ai,
@@ -33,7 +33,7 @@ pub enum Controller {
 }
 
 /// Defines the appearance of the entity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, bevy_reflect::Reflect)]
 pub enum Appearance {
     Avatar(String),
     Model(String),
@@ -53,7 +53,7 @@ pub struct Npc;
 pub struct Location;
 
 /// A monolithic entity abstraction holding all geospatial and semantic game state.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, bevy_reflect::Reflect, bevy_ecs::component::Component)]
 pub struct WorldEntity {
     pub id: u64,
     pub geographic_position: GeographicPosition,
@@ -61,6 +61,7 @@ pub struct WorldEntity {
     pub visibility: Visibility,
     pub controller: Controller,
     pub appearance: Appearance,
+    #[reflect(ignore)]
     pub metadata: std::collections::HashMap<String, String>,
 }
 

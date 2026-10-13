@@ -12,7 +12,7 @@ pub enum StreamingCommand {
     DespawnEntities(ChunkCoord),
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bevy_reflect::Reflect, bevy_ecs::component::Component)]
 pub struct TransformComponent {
     pub matrix: [f32; 16],
 }
