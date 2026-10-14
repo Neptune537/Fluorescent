@@ -87,6 +87,6 @@ impl BevyEngineWorld {
 
     /// Total active user entity count currently living in the Bevy ECS world.
     pub fn entity_count(&self) -> usize {
-        (self.world.entities().count_spawned().saturating_sub(1)) as usize
+        (self.world.entities().len().saturating_sub(1)) as usize
     }
 }

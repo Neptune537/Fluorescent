@@ -8,6 +8,97 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub const TELEMETRY_RING_CAPACITY: usize = 256;
 pub const MAX_RADAR_BLIPS: usize = 32;
+pub const MAX_ACTIVE_LINKS: usize = 16;
+pub const MAX_EDGE_NODES: usize = 32;
+
+pub const NODE_ROLE_MASTER: u8 = 0;
+pub const NODE_ROLE_EDGE_WORKER: u8 = 1;
+
+/// Proof-of-Health metrics for edge compute nodes (Bioluminescence Telemetry)
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
+pub struct ProofOfHealth {
+    pub thermal_celsius: f32,
+    pub vram_allocated_pct: f32,
+    pub battery_pct: f32,
+    pub _pad: u32,
+}
+
+impl Default for ProofOfHealth {
+    fn default() -> Self {
+        Self {
+            thermal_celsius: 0.0,
+            vram_allocated_pct: 0.0,
+            battery_pct: 0.0,
+            _pad: 0,
+        }
+    }
+}
+
+/// Compute throughput metrics for edge compute pipelines
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
+pub struct ComputeThroughput {
+    pub tokens_per_sec: f32,
+    pub active_layers_assigned: u8,
+    pub _pad0: [u8; 3], // padding for u64 alignment
+    pub kv_cache_bytes: u64,
+}
+
+impl Default for ComputeThroughput {
+    fn default() -> Self {
+        Self {
+            tokens_per_sec: 0.0,
+            active_layers_assigned: 0,
+            _pad0: [0; 3],
+            kv_cache_bytes: 0,
+        }
+    }
+}
+
+/// Telemetry payload for a distributed edge AI compute node
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, bytemuck::Pod, bytemuck::Zeroable, Serialize, Deserialize,
+)]
+pub struct EdgeNodeTelemetry {
+    pub node_id: u32,
+    pub node_role: u8,
+    pub _pad0: [u8; 3], // align to 8 bytes for f64
+    #[serde(with = "serde_arrays")]
+    pub did: [u8; 64],  // did:nexus: string identifier
+    pub ecef_x: f64,
+    pub ecef_y: f64,
+    pub ecef_z: f64,
+    pub proof_of_health: ProofOfHealth,
+    pub compute_throughput: ComputeThroughput,
+    pub active_link_count: u32,
+    pub active_links: [u32; MAX_ACTIVE_LINKS],
+    pub _pad1: u32, // align to 8 bytes size boundary
+}
+
+impl Default for EdgeNodeTelemetry {
+    fn default() -> Self {
+        Self {
+            node_id: 0,
+            node_role: NODE_ROLE_MASTER,
+            _pad0: [0; 3],
+            did: [0; 64],
+            ecef_x: 0.0,
+            ecef_y: 0.0,
+            ecef_z: 0.0,
+            proof_of_health: ProofOfHealth::default(),
+            compute_throughput: ComputeThroughput::default(),
+            active_link_count: 0,
+            active_links: [0; MAX_ACTIVE_LINKS],
+            _pad1: 0,
+        }
+    }
+}
 
 /// Compact radar blip representation for tactical HUD overlay.
 #[repr(C)]
@@ -65,6 +156,9 @@ pub struct TelemetryFrame {
     pub heat_level: u32,
     pub blip_count: u32,
     pub radar_blips: [RadarBlip; MAX_RADAR_BLIPS],
+    pub edge_node_count: u32,
+    pub _pad: u32,
+    pub edge_nodes: [EdgeNodeTelemetry; MAX_EDGE_NODES],
 }
 
 impl Default for TelemetryFrame {
@@ -81,6 +175,9 @@ impl Default for TelemetryFrame {
             heat_level: 0,
             blip_count: 0,
             radar_blips: [RadarBlip::default(); MAX_RADAR_BLIPS],
+            edge_node_count: 0,
+            _pad: 0,
+            edge_nodes: [EdgeNodeTelemetry::default(); MAX_EDGE_NODES],
         }
     }
 }
