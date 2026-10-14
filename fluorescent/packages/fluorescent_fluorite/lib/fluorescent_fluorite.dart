@@ -26,6 +26,3 @@ export 'src/ui/narrative/narrative_deck.dart';
 
 // Audio & Accessibility (A11y)
 export 'src/ui/a11y/accessibility_system.dart';
-
-// Fluoridian Tactical Bridge & Viewport
-export 'package:fluoridian_app/fluoderpod/fluorescent_viewport.dart';
