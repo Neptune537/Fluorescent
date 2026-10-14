@@ -71,6 +71,36 @@ void updateCameraPosition(
         {required double x, required double y, required double z}) =>
     RustLib.instance.api.crateApiEngineUpdateCameraPosition(x: x, y: y, z: z);
 
+/// Computes horizontal celestial placements (Azimuth, Elevation, 3D direction vectors)
+/// for all visible planets, Sun, Moon, and navigational stars relative to observer GPS.
+String computeCelestialPlacementsJson(
+        {required double lat,
+        required double lon,
+        required double alt,
+        required PlatformInt64 timeMs}) =>
+    RustLib.instance.api.crateApiEngineComputeCelestialPlacementsJson(
+        lat: lat, lon: lon, alt: alt, timeMs: timeMs);
+
+/// Computes solar lighting, twilight phase, and sky illumination parameters.
+String computeSkyIlluminationJson(
+        {required double lat,
+        required double lon,
+        required PlatformInt64 timeMs}) =>
+    RustLib.instance.api.crateApiEngineComputeSkyIlluminationJson(
+        lat: lat, lon: lon, timeMs: timeMs);
+
+/// Evaluates the ~500m space-to-street altitude transition threshold and manages physics colliders.
+String updateAltitudeTransitionJson(
+        {required double lat, required double lon, required double alt}) =>
+    RustLib.instance.api.crateApiEngineUpdateAltitudeTransitionJson(
+        lat: lat, lon: lon, alt: alt);
+
+/// Updates camera ECEF position in the spherical quadtree streamer and returns count of visible render tiles.
+BigInt updateSphereQuadtreeCameraFfi(
+        {required double camX, required double camY, required double camZ}) =>
+    RustLib.instance.api.crateApiEngineUpdateSphereQuadtreeCameraFfi(
+        camX: camX, camY: camY, camZ: camZ);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SharedFrameBuffer>>
 abstract class SharedFrameBuffer implements RustOpaqueInterface {
   Uint8List get data;

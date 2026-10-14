@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 663920910;
+  int get rustContentHash => 1078153614;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -107,6 +107,17 @@ abstract class RustLibApi extends BaseApi {
 
   Uint8List crateApiEngineAllocateEngineBuffer({required BigInt sizeBytes});
 
+  String crateApiEngineComputeCelestialPlacementsJson(
+      {required double lat,
+      required double lon,
+      required double alt,
+      required PlatformInt64 timeMs});
+
+  String crateApiEngineComputeSkyIlluminationJson(
+      {required double lat,
+      required double lon,
+      required PlatformInt64 timeMs});
+
   void crateApiEngineDrawWireframe(
       {required List<double> transform,
       required int color,
@@ -126,8 +137,14 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiEngineToggleDlss({required bool enabled});
 
+  String crateApiEngineUpdateAltitudeTransitionJson(
+      {required double lat, required double lon, required double alt});
+
   void crateApiEngineUpdateCameraPosition(
       {required double x, required double y, required double z});
+
+  BigInt crateApiEngineUpdateSphereQuadtreeCameraFfi(
+      {required double camX, required double camY, required double camZ});
 
   bool crateApiEngineVerifyBufferSentinels({required List<int> buffer});
 
@@ -392,6 +409,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  String crateApiEngineComputeCelestialPlacementsJson(
+      {required double lat,
+      required double lon,
+      required double alt,
+      required PlatformInt64 timeMs}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_f_64(lat, serializer);
+        sse_encode_f_64(lon, serializer);
+        sse_encode_f_64(alt, serializer);
+        sse_encode_i_64(timeMs, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiEngineComputeCelestialPlacementsJsonConstMeta,
+      argValues: [lat, lon, alt, timeMs],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineComputeCelestialPlacementsJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: "compute_celestial_placements_json",
+        argNames: ["lat", "lon", "alt", "timeMs"],
+      );
+
+  @override
+  String crateApiEngineComputeSkyIlluminationJson(
+      {required double lat,
+      required double lon,
+      required PlatformInt64 timeMs}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_f_64(lat, serializer);
+        sse_encode_f_64(lon, serializer);
+        sse_encode_i_64(timeMs, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiEngineComputeSkyIlluminationJsonConstMeta,
+      argValues: [lat, lon, timeMs],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineComputeSkyIlluminationJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: "compute_sky_illumination_json",
+        argNames: ["lat", "lon", "timeMs"],
+      );
+
+  @override
   void crateApiEngineDrawWireframe(
       {required List<double> transform,
       required int color,
@@ -402,7 +479,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_list_prim_f_32_loose(transform, serializer);
         sse_encode_u_32(color, serializer);
         sse_encode_f_32(thickness, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -425,7 +502,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_engine_status,
@@ -448,7 +525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_chunk_streaming_metrics_c,
@@ -472,7 +549,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_f_32_loose(nodeData, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -496,7 +573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(quality, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -520,7 +597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_usize(count, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -544,7 +621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_box_autoadd_engine_config(config, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_engine_status,
@@ -567,7 +644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_bool(enabled, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -585,6 +662,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  String crateApiEngineUpdateAltitudeTransitionJson(
+      {required double lat, required double lon, required double alt}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_f_64(lat, serializer);
+        sse_encode_f_64(lon, serializer);
+        sse_encode_f_64(alt, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_String,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiEngineUpdateAltitudeTransitionJsonConstMeta,
+      argValues: [lat, lon, alt],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineUpdateAltitudeTransitionJsonConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_altitude_transition_json",
+        argNames: ["lat", "lon", "alt"],
+      );
+
+  @override
   void crateApiEngineUpdateCameraPosition(
       {required double x, required double y, required double z}) {
     return handler.executeSync(SyncTask(
@@ -593,7 +697,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_f_32(x, serializer);
         sse_encode_f_32(y, serializer);
         sse_encode_f_32(z, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -612,12 +716,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  BigInt crateApiEngineUpdateSphereQuadtreeCameraFfi(
+      {required double camX, required double camY, required double camZ}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_f_64(camX, serializer);
+        sse_encode_f_64(camY, serializer);
+        sse_encode_f_64(camZ, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_usize,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiEngineUpdateSphereQuadtreeCameraFfiConstMeta,
+      argValues: [camX, camY, camZ],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiEngineUpdateSphereQuadtreeCameraFfiConstMeta =>
+      const TaskConstMeta(
+        debugName: "update_sphere_quadtree_camera_ffi",
+        argNames: ["camX", "camY", "camZ"],
+      );
+
+  @override
   bool crateApiEngineVerifyBufferSentinels({required List<int> buffer}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(buffer, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -643,7 +774,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_list_prim_u_8_loose(buffer, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 20, port: port_);
+            funcId: 24, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_bool,
@@ -773,6 +904,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   double dco_decode_f_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
   }
@@ -969,6 +1106,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
+  }
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
@@ -1162,6 +1305,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_32(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat32(self);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
   }
 
   @protected
