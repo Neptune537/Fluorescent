@@ -42,7 +42,7 @@ impl ReplicationSystem {
 
     pub fn get_visible_entities(world: &EngineWorld, viewer_position: [f32; 3], cull_radius_sq: f32) -> Vec<hecs::Entity> {
         let mut visible = Vec::new();
-        for (entity, transform) in world.ecs.query_mut::<&TransformComponent>() {
+        for (entity, transform) in world.ecs.query::<&TransformComponent>().iter() {
             let pos_x = transform.matrix[12];
             let pos_y = transform.matrix[13];
             let pos_z = transform.matrix[14];
@@ -165,47 +165,36 @@ impl ReplicationSystem {
             let tick_rate = interp.target_time - interp.start_time;
 
             if delta_time <= tick_rate {
-                // Interpolate
+                // Interpolate position components using linear interpolation between start and target matrices
                 let t = (delta_time / tick_rate).clamp(0.0, 1.0) as f32;
                 let mut new_matrix = interp.start_transform.matrix;
 
-                let start_pos = [
-                    interp.start_transform.matrix[12],
-                    interp.start_transform.matrix[13],
-                    interp.start_transform.matrix[14]
-                ];
-
-                let target_pos = [
-                    interp.target_transform.matrix[12],
-                    interp.target_transform.matrix[13],
-                    interp.target_transform.matrix[14]
-                ];
-
-                new_matrix[12] = start_pos[0] + (target_pos[0] - start_pos[0]) * t;
-                new_matrix[13] = start_pos[1] + (target_pos[1] - start_pos[1]) * t;
-                new_matrix[14] = start_pos[2] + (target_pos[2] - start_pos[2]) * t;
+                // Linearly interpolate the translation vector (indices 12, 13, 14 of the 4x4 matrix)
+                new_matrix[12] = interp.start_transform.matrix[12] + (interp.target_transform.matrix[12] - interp.start_transform.matrix[12]) * t;
+                new_matrix[13] = interp.start_transform.matrix[13] + (interp.target_transform.matrix[13] - interp.start_transform.matrix[13]) * t;
+                new_matrix[14] = interp.start_transform.matrix[14] + (interp.target_transform.matrix[14] - interp.start_transform.matrix[14]) * t;
 
                 transform.matrix = new_matrix;
             } else {
-                // Extrapolate
+                // Extrapolate - map velocity vector to matrix translation components
                 if let Some(vel) = interp.velocity {
                     let extrapolation_time = (delta_time - tick_rate) as f32;
+
+                    // Cap extrapolation to avoid flying off the map during severe lag spikes
                     let max_extrapolation = 0.5;
                     let time_to_extrapolate = extrapolation_time.min(max_extrapolation);
 
                     let mut new_matrix = interp.target_transform.matrix;
-                    let target_pos = [
-                        interp.target_transform.matrix[12],
-                        interp.target_transform.matrix[13],
-                        interp.target_transform.matrix[14]
-                    ];
 
-                    new_matrix[12] = target_pos[0] + vel[0] * time_to_extrapolate;
-                    new_matrix[13] = target_pos[1] + vel[1] * time_to_extrapolate;
-                    new_matrix[14] = target_pos[2] + vel[2] * time_to_extrapolate;
+                    // The velocity vector provides units/sec. We apply this linear translation
+                    // over the extrapolated time delta to the target position matrix elements (12, 13, 14).
+                    new_matrix[12] = interp.target_transform.matrix[12] + vel[0] * time_to_extrapolate;
+                    new_matrix[13] = interp.target_transform.matrix[13] + vel[1] * time_to_extrapolate;
+                    new_matrix[14] = interp.target_transform.matrix[14] + vel[2] * time_to_extrapolate;
 
                     transform.matrix = new_matrix;
                 } else {
+                    // Fallback to strict target transform if no velocity is known
                     *transform = interp.target_transform;
                 }
             }
@@ -244,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_network_interpolation_interpolates() {
+    fn test_extract_network_interpolation_interpolates() {
         let mut world = EngineWorld::new();
         let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
 
@@ -264,7 +253,7 @@ mod tests {
 
         let e = world.ecs.spawn((start_transform, interp));
 
-        ReplicationSystem::apply_network_interpolation(&mut world);
+        ReplicationSystem::extract_network_interpolation(&mut world);
 
         let t = world.ecs.get::<TransformComponent>(e).unwrap();
         // Since we are exactly halfway (50ms elapsed / 100ms tick), X should be 5.0
@@ -272,7 +261,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_network_interpolation_extrapolates() {
+    fn test_extract_network_interpolation_extrapolates() {
         let mut world = EngineWorld::new();
         let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
 
@@ -292,7 +281,7 @@ mod tests {
 
         let e = world.ecs.spawn((target_transform, interp));
 
-        ReplicationSystem::apply_network_interpolation(&mut world);
+        ReplicationSystem::extract_network_interpolation(&mut world);
 
         let t = world.ecs.get::<TransformComponent>(e).unwrap();
         // Extrapolation time: 200ms - 100ms = 100ms (0.1s)
