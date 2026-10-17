@@ -71,7 +71,9 @@ impl GltfMeshLoader {
                 vertex_count: chunk.len() as u32,
                 index_offset: 0,
                 index_count: chunk.len() as u32,
-                _padding: [0; 2],
+                flags: super::CLUSTER_FLAG_STATIC,
+                dynamic_buffer_slot: 0,
+                _pad: [0; 2],
             };
 
             clusters.push(ClusterData {

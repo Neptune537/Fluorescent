@@ -364,6 +364,37 @@ impl QuadtreeGlobe {
         required_tiles
     }
 
+    /// Calculates a bounded (2r + 1) x (2r + 1) tile grid centered on the camera's location.
+    /// At radius r = 2, this produces the 5x5 = 25 tiles neighborhood.
+    pub fn calculate_local_tile_ring(&self, camera_ecef: [f64; 3], zoom: u8, radius: i32) -> Vec<TileIndex> {
+        let (lat, lon) = self.ecef_to_lat_lon(camera_ecef);
+        let n = 1i64 << zoom;
+        let cx = (((lon + 180.0) / 360.0) * n as f64).clamp(0.0, (n - 1) as f64) as i64;
+        let lat_rad = lat.to_radians();
+        let cy = (((1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0) * n as f64)
+            .clamp(0.0, (n - 1) as f64) as i64;
+
+        let mut ring = Vec::with_capacity(((2 * radius + 1) * (2 * radius + 1)) as usize);
+
+        for dy in -radius..=radius {
+            let ty = cy + dy as i64;
+            if ty < 0 || ty >= n {
+                continue; // Clamp to valid spherical Mercator bounds
+            }
+            for dx in -radius..=radius {
+                // Wrap longitude coordinate horizontally
+                let tx = (cx + dx as i64).rem_euclid(n);
+                ring.push(TileIndex {
+                    zoom,
+                    x: tx as u32,
+                    y: ty as u32,
+                });
+            }
+        }
+
+        ring
+    }
+
     /// Altitude boundary transition (ECEF to Local origin shift)
     pub fn calculate_render_origin(&self, camera_ecef: [f64; 3]) -> [f64; 3] {
         let alt = self.calculate_altitude(camera_ecef);
@@ -402,6 +433,114 @@ impl QuadtreeGlobe {
         let lon = y.atan2(x).to_degrees();
         let lat = z.atan2(p).to_degrees();
         (lat, lon)
+    }
+}
+
+/// Viewport rendering mode: full planetary globe vs localized tactical tile map
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ViewportMode {
+    /// Globe mode: Full planetary sphere, orbital telemetry, global aircraft/satellite tracks, quadtree LOD
+    Globe,
+    /// Local Map / Tactical mode: Bounded (2r + 1) x (2r + 1) tile ring (e.g. 5x5 = 25 tiles),
+    /// high precision ground physics, distant telemetry culled/throttled to save mobile GPU/CPU resources.
+    LocalMap,
+}
+
+/// Configuration for Local Map tile ring and prefetch
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct LocalTileRingConfig {
+    /// Ring radius for rendered tiles (r = 1 => 3x3 = 9 tiles, r = 2 => 5x5 = 25 tiles)
+    pub render_radius: i32,
+    /// Ring radius for asynchronous prefetch cache (e.g. r = 3 => 7x7 outer lookahead)
+    pub prefetch_radius: i32,
+    /// Target tile zoom level for local map mode (e.g. 15 or 16 for street/tactical level)
+    pub target_zoom: u8,
+    /// Distance cutoff in meters for ingesting entity telemetry in LocalMap mode
+    pub telemetry_cull_radius_meters: f64,
+}
+
+impl Default for LocalTileRingConfig {
+    fn default() -> Self {
+        Self {
+            render_radius: 2,       // 5x5 = 25 tiles active
+            prefetch_radius: 3,     // 7x7 outer prefetch lookahead
+            target_zoom: 15,
+            telemetry_cull_radius_meters: 25_000.0, // 25km local bubble
+        }
+    }
+}
+
+/// Manages active tiles and prefetch queue for the bounded (2r + 1) x (2r + 1) tile window.
+#[derive(Debug, Clone)]
+pub struct RingTileManager {
+    pub config: LocalTileRingConfig,
+    pub current_center: Option<TileIndex>,
+    pub active_render_tiles: Vec<TileIndex>,
+    pub prefetch_queue: Vec<TileIndex>,
+}
+
+impl RingTileManager {
+    pub fn new(config: LocalTileRingConfig) -> Self {
+        Self {
+            config,
+            current_center: None,
+            active_render_tiles: Vec::new(),
+            prefetch_queue: Vec::new(),
+        }
+    }
+
+    /// Updates the active 5x5 (or (2r+1)x(2r+1)) window and outer prefetch queue based on camera coordinates
+    pub fn update(&mut self, globe: &QuadtreeGlobe, camera_ecef: [f64; 3]) -> bool {
+        let (lat, lon) = globe.ecef_to_lat_lon(camera_ecef);
+        let zoom = self.config.target_zoom;
+        let n = 1i64 << zoom;
+        let cx = (((lon + 180.0) / 360.0) * n as f64).clamp(0.0, (n - 1) as f64) as i64;
+        let lat_rad = lat.to_radians();
+        let cy = (((1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0) * n as f64)
+            .clamp(0.0, (n - 1) as f64) as i64;
+
+        let center_tile = TileIndex {
+            zoom,
+            x: cx as u32,
+            y: cy as u32,
+        };
+
+        let center_changed = self.current_center != Some(center_tile);
+        if center_changed {
+            self.current_center = Some(center_tile);
+
+            // Compute active render ring (2 * r_render + 1)^2
+            self.active_render_tiles = globe.calculate_local_tile_ring(
+                camera_ecef,
+                zoom,
+                self.config.render_radius,
+            );
+
+            // Compute outer prefetch ring (tiles in prefetch_radius but not in render_radius)
+            let full_prefetch_ring = globe.calculate_local_tile_ring(
+                camera_ecef,
+                zoom,
+                self.config.prefetch_radius,
+            );
+
+            self.prefetch_queue = full_prefetch_ring
+                .into_iter()
+                .filter(|tile| !self.active_render_tiles.contains(tile))
+                .collect();
+        }
+
+        center_changed
+    }
+
+    /// Evaluates if an entity at world position (ECEF) should have its telemetry processed in LocalMap mode.
+    /// Distant entities (> telemetry_cull_radius_meters) are gated out to save CPU/GPU cycles.
+    pub fn is_entity_in_telemetry_bubble(&self, camera_ecef: [f64; 3], entity_ecef: [f64; 3]) -> bool {
+        let dx = camera_ecef[0] - entity_ecef[0];
+        let dy = camera_ecef[1] - entity_ecef[1];
+        let dz = camera_ecef[2] - entity_ecef[2];
+        let dist_sq = dx * dx + dy * dy + dz * dz;
+        let max_r = self.config.telemetry_cull_radius_meters;
+        dist_sq <= max_r * max_r
     }
 }
 
@@ -496,4 +635,32 @@ mod tests {
         assert!(!ground_state.planetary_sphere_active); // Global sphere disabled
         assert!(ground_state.local_terrain_active);
     }
+
+    #[test]
+    fn test_ring_tile_manager_5x5_and_telemetry_gating() {
+        let globe = QuadtreeGlobe::new(15);
+        let config = LocalTileRingConfig {
+            render_radius: 2,   // 5x5 = 25 tiles
+            prefetch_radius: 3, // 7x7 outer lookahead = 49 - 25 = 24 prefetch tiles
+            target_zoom: 15,
+            telemetry_cull_radius_meters: 25_000.0,
+        };
+
+        let mut manager = RingTileManager::new(config);
+        // ECEF position on equator / prime meridian
+        let camera_pos = [EARTH_RADIUS_WGS84 + 100.0, 0.0, 0.0];
+
+        let changed = manager.update(&globe, camera_pos);
+        assert!(changed);
+        assert_eq!(manager.active_render_tiles.len(), 25); // Exactly 5x5 = 25 tiles
+        assert_eq!(manager.prefetch_queue.len(), 24);      // (7x7) - (5x5) = 24 tiles
+
+        // Telemetry gating test
+        let close_entity = [EARTH_RADIUS_WGS84 + 100.0, 5000.0, 0.0]; // ~5km away
+        assert!(manager.is_entity_in_telemetry_bubble(camera_pos, close_entity));
+
+        let distant_entity = [EARTH_RADIUS_WGS84 + 100.0, 100_000.0, 0.0]; // ~100km away
+        assert!(!manager.is_entity_in_telemetry_bubble(camera_pos, distant_entity));
+    }
 }
+

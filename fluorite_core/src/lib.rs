@@ -63,7 +63,7 @@ pub use fluoropod::{
 
 pub use physics::{
     BalanceState, BiomechanicalController, CharacterController, CharacterMovementResult,
-    FluidMedium, Hydrodynamics, MuscleJointActuator, PacejkaCoefficients, PhysicsWorld, StepStats,
+    FluidMedium, GerstnerWave, Hydrodynamics, MuscleJointActuator, PacejkaCoefficients, PhysicsWorld, StepStats,
     VehicleDynamics, WheelSuspension,
 };
 

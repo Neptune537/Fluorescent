@@ -8,6 +8,11 @@ pub use globe::{
 
 /// Virtual Geometry (Nanite-style) cluster evaluation.
 
+pub const CLUSTER_FLAG_STATIC: u32 = 0;
+pub const CLUSTER_FLAG_DYNAMIC_OVERRIDE: u32 = 1 << 0;
+pub const CLUSTER_FLAG_WPO_DEFORM: u32 = 1 << 1;
+pub const CLUSTER_FLAG_DETACHED_LEAF: u32 = 1 << 2;
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ClusterHeader {
@@ -20,7 +25,9 @@ pub struct ClusterHeader {
     pub vertex_count: u32,
     pub index_offset: u32,
     pub index_count: u32,
-    pub _padding: [u32; 2],
+    pub flags: u32,
+    pub dynamic_buffer_slot: u32,
+    pub _pad: [u32; 2],
 }
 
 #[derive(Clone, Debug)]
@@ -355,5 +362,59 @@ impl ClusterStreamer {
                 }
             }
         });
+    }
+
+    /// Override a cluster with dynamic, deformed geometry.
+    /// This bypasses disk streaming and directly uploads dynamic meshlet data into the GPU buffers.
+    pub fn stage_dynamic_override(
+        &mut self,
+        queue: &wgpu::Queue,
+        vertex_buffer: &wgpu::Buffer,
+        index_buffer: &wgpu::Buffer,
+        cluster: &ClusterData,
+    ) {
+        let vertex_offset = cluster.header.vertex_offset as wgpu::BufferAddress;
+        queue.write_buffer(vertex_buffer, vertex_offset, &cluster.vertex_data);
+        let index_offset = cluster.header.index_offset as wgpu::BufferAddress;
+        queue.write_buffer(index_buffer, index_offset, &cluster.index_data);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cluster_header_size_and_alignment() {
+        assert_eq!(std::mem::size_of::<ClusterHeader>(), 64);
+        assert_eq!(std::mem::align_of::<ClusterHeader>(), 4);
+    }
+
+    #[test]
+    fn test_dynamic_detachment_flags() {
+        let mut header = ClusterHeader {
+            sphere_bounds: [0.0, 0.0, 0.0, 5.0],
+            lod_error: 0.05,
+            parent_lod_error: 1.0,
+            cluster_id: 42,
+            parent_cluster_id: 1,
+            vertex_offset: 0,
+            vertex_count: 64,
+            index_offset: 0,
+            index_count: 128,
+            flags: CLUSTER_FLAG_STATIC,
+            dynamic_buffer_slot: 0,
+            _pad: [0; 2],
+        };
+
+        assert_eq!(header.flags & CLUSTER_FLAG_DETACHED_LEAF, 0);
+
+        // Detach cluster for dynamic soft-body deformation loop
+        header.flags |= CLUSTER_FLAG_DETACHED_LEAF | CLUSTER_FLAG_DYNAMIC_OVERRIDE;
+        header.dynamic_buffer_slot = 3;
+
+        assert_ne!(header.flags & CLUSTER_FLAG_DETACHED_LEAF, 0);
+        assert_ne!(header.flags & CLUSTER_FLAG_DYNAMIC_OVERRIDE, 0);
+        assert_eq!(header.dynamic_buffer_slot, 3);
     }
 }

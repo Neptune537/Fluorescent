@@ -48,6 +48,9 @@ pub struct FluoderpodRenderer {
     
     pub geofence_registry: geofencing::GeofenceRegistry,
     pub aircraft_telemetry: std::collections::HashMap<String, unified_pipeline::PackedEntityInstance>,
+    pub viewport_mode: virtual_geometry::globe::ViewportMode,
+    pub ring_tile_manager: virtual_geometry::globe::RingTileManager,
+    pub camera_ecef: [f64; 3],
 }
 
 impl FluoderpodRenderer {
@@ -90,6 +93,9 @@ impl FluoderpodRenderer {
             max_page_faults,
             geofence_registry: geofencing::GeofenceRegistry::new(),
             aircraft_telemetry: std::collections::HashMap::new(),
+            viewport_mode: virtual_geometry::globe::ViewportMode::Globe,
+            ring_tile_manager: virtual_geometry::globe::RingTileManager::new(virtual_geometry::globe::LocalTileRingConfig::default()),
+            camera_ecef: [virtual_geometry::globe::EARTH_RADIUS_WGS84 + 10_000.0, 0.0, 0.0],
         }
     }
 
@@ -164,32 +170,42 @@ impl FluoderpodRenderer {
                         let x = (n + alt) * lat_rad.cos() * lon_rad.cos();
                         let y = (n + alt) * lat_rad.cos() * lon_rad.sin();
                         let z = (n * (1.0 - e_sq) + alt) * lat_rad.sin();
-                        
-                        let mut packet = crate::entity_packet::EntityPacket64 {
-                            x, y, z,
-                            entity_type: crate::entity_packet::ENTITY_TYPE_AIRCRAFT,
-                            status: 1,
-                            faction: 0,
-                            bounty_le: [0; 8],
-                            id: [0; 20],
+                        let entity_pos = [x, y, z];
+                        // Telemetry Gating: If in LocalMap mode, only store entities within the local neighborhood bubble
+                        let should_ingest = match self.viewport_mode {
+                            virtual_geometry::globe::ViewportMode::Globe => true,
+                            virtual_geometry::globe::ViewportMode::LocalMap => {
+                                self.ring_tile_manager.is_entity_in_telemetry_bubble(self.camera_ecef, entity_pos)
+                            }
                         };
-                        
-                        // Use flight name or entity_id as id
-                        let ident = flight.unwrap_or(entity_id.clone());
-                        let bytes = ident.as_bytes();
-                        for i in 0..bytes.len().min(20) {
-                            packet.id[i] = bytes[i];
-                        }
 
-                        let packed = crate::unified_pipeline::PackedEntityInstance {
-                            position: [x as f32, y as f32, z as f32],
-                            sphere_radius: 20.0,
-                            rotation_quat: [0.0, 0.0, 0.0, 1.0],
-                            scale: [1.0, 1.0, 1.0],
-                            cluster_and_flags: packet.entity_type,
-                        };
-                        
-                        self.aircraft_telemetry.insert(ident, packed);
+                        if should_ingest {
+                            let mut packet = crate::entity_packet::EntityPacket64 {
+                                x, y, z,
+                                entity_type: crate::entity_packet::ENTITY_TYPE_AIRCRAFT,
+                                status: 1,
+                                faction: 0,
+                                bounty_le: [0; 8],
+                                id: [0; 20],
+                            };
+                            
+                            // Use flight name or entity_id as id
+                            let ident = flight.unwrap_or(entity_id.clone());
+                            let bytes = ident.as_bytes();
+                            for i in 0..bytes.len().min(20) {
+                                packet.id[i] = bytes[i];
+                            }
+
+                            let packed = crate::unified_pipeline::PackedEntityInstance {
+                                position: [x as f32, y as f32, z as f32],
+                                sphere_radius: 20.0,
+                                rotation_quat: [0.0, 0.0, 0.0, 1.0],
+                                scale: [1.0, 1.0, 1.0],
+                                cluster_and_flags: packet.entity_type,
+                            };
+                            
+                            self.aircraft_telemetry.insert(ident, packed);
+                        }
                     }
                     _ => {}
                 }

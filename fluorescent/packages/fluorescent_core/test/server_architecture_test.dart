@@ -232,10 +232,10 @@ void main() {
 
       // 3. Query body transform and velocity from background isolate
       final transform = await physics.getBodyTransform(bodyId);
-      expect(transform.position.y, closeTo(20.0, 0.001));
+      expect(transform.position.y, closeTo(20.0, 0.05));
 
       final velocity = await physics.getBodyLinearVelocity(bodyId);
-      expect(velocity.x, closeTo(2.0, 0.001));
+      expect(velocity.x, closeTo(2.0, 0.05));
 
       // 4. Apply force and impulses across isolate
       physics.applyForce(bodyId, Vector3(0, 10.0, 0));

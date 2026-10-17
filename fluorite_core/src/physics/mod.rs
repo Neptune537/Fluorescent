@@ -10,7 +10,7 @@ pub mod sync;
 pub mod vehicle;
 pub mod world;
 
-pub use aerohydro::{FluidMedium, Hydrodynamics};
+pub use aerohydro::{FluidMedium, GerstnerWave, Hydrodynamics};
 pub use biomechanics::{BalanceState, BiomechanicalController, MuscleJointActuator};
 pub use character_controller::{CharacterController, CharacterMovementResult};
 pub use sync::{

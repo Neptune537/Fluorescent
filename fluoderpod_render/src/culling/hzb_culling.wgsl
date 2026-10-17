@@ -30,6 +30,21 @@ struct DrawIndexedIndirectArgs {
 @group(0) @binding(4) var hzb_tex: texture_2d<f32>;
 @group(0) @binding(5) var hzb_sampler: sampler;
 
+struct ImpactDeformationZone {
+    center: vec3<f32>,
+    radius: f32,
+    max_displacement: f32,
+    _pad: vec3<f32>,
+};
+
+struct ImpactUniforms {
+    zone_count: u32,
+    _pad: vec3<u32>,
+};
+
+@group(0) @binding(6) var<storage, read> impact_zones: array<ImpactDeformationZone>;
+@group(0) @binding(7) var<uniform> impact_uniforms: ImpactUniforms;
+
 @compute @workgroup_size(64, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let instance_index = global_id.x;
@@ -39,8 +54,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     let instance = instances[instance_index];
-    let center = instance.pos_and_radius.xyz;
-    let radius = instance.pos_and_radius.w;
+    var center = instance.pos_and_radius.xyz;
+    var radius = instance.pos_and_radius.w;
+
+    // Strategy 2: Dynamic Impact Zone Conservative Bounding Expansion
+    // If within an active impact deformation zone, conservatively pad the bounding sphere
+    // by max_displacement to ensure WPO soft-body deformation is not prematurely culled.
+    let num_zones = impact_uniforms.zone_count;
+    for (var z = 0u; z < num_zones; z = z + 1u) {
+        let zone = impact_zones[z];
+        let d = length(center - zone.center);
+        if (d < (radius + zone.radius)) {
+            radius = radius + zone.max_displacement;
+            break;
+        }
+    }
 
     // 1. Frustum Culling
     var is_visible = true;

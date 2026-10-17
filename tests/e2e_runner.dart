@@ -16,6 +16,7 @@ import 'tier1_feature_coverage_test.dart';
 import 'tier2_boundary_corner_test.dart';
 import 'tier3_cross_feature_test.dart';
 import 'tier4_real_world_scenarios_test.dart';
+import 'stages_and_tools_test.dart';
 
 void main() async {
   TestHarness.reset();
@@ -25,6 +26,9 @@ void main() async {
   registerTier2Tests();
   registerTier3Tests();
   registerTier4Tests();
+
+  // Register stages and tools test suite
+  registerStagesAndToolsTests();
 
   // Run all tests
   final summary = await TestHarness.runAll();

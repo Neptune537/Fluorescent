@@ -21,6 +21,9 @@ struct ClusterHeader {
     vertex_count: u32,
     index_offset: u32,
     index_count: u32,
+    flags: u32,
+    dynamic_buffer_slot: u32,
+    _pad: vec2<u32>,
 }
 
 struct ClusterMetadataBuffer {
@@ -85,6 +88,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     let cluster = metadata_buffer.clusters[idx];
 
+    // Dynamic Detachment check (Strategy 1):
+    // If flagged as CLUSTER_FLAG_DETACHED_LEAF (bit 2), this cluster has been stripped from
+    // the rigid static DAG and is routed directly to the dynamic soft-body meshlet pass.
+    let CLUSTER_FLAG_DETACHED_LEAF = 4u;
+    if ((cluster.flags & CLUSTER_FLAG_DETACHED_LEAF) != 0u) {
+        return;
+    }
+
     // Evaluate error
     let cluster_sse = get_screen_space_error(cluster.lod_error, cluster.sphere_bounds.xyz, cluster.sphere_bounds.w);
     let parent_sse = get_screen_space_error(cluster.parent_lod_error, cluster.sphere_bounds.xyz, cluster.sphere_bounds.w);
@@ -109,12 +120,16 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             draw_args_buffer.args[output_idx].base_vertex = i32(cluster.vertex_offset);
             draw_args_buffer.args[output_idx].first_instance = cluster.cluster_id;
         } else {
-            // Cluster is not resident, record a page fault
-            let fault_idx = atomicAdd(&page_faults.count, 1u);
-            // Limit page faults to avoid buffer overflow if there are too many
-            let max_faults = arrayLength(&page_faults.cluster_ids);
-            if fault_idx < max_faults {
-                page_faults.cluster_ids[fault_idx] = cluster.cluster_id;
+            // Clusters with dynamic override (bit 0) are resident in the dynamic ring buffer
+            let CLUSTER_FLAG_DYNAMIC_OVERRIDE = 1u;
+            if ((cluster.flags & CLUSTER_FLAG_DYNAMIC_OVERRIDE) == 0u) {
+                // Static cluster is not resident, record a page fault
+                let fault_idx = atomicAdd(&page_faults.count, 1u);
+                // Limit page faults to avoid buffer overflow if there are too many
+                let max_faults = arrayLength(&page_faults.cluster_ids);
+                if fault_idx < max_faults {
+                    page_faults.cluster_ids[fault_idx] = cluster.cluster_id;
+                }
             }
         }
     }

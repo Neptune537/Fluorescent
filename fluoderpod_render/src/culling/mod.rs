@@ -15,6 +15,24 @@ pub struct CameraUniforms {
     pub _pad1: [f32; 2],                // 8 bytes
 }
 
+/// Dynamic impact deformation zone for WPO conservative bounding expansion.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct ImpactDeformationZone {
+    pub center: [f32; 3],
+    pub radius: f32,
+    pub max_displacement: f32,
+    pub _pad: [f32; 3],
+}
+
+/// Uniforms defining the active dynamic impact zones count.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct ImpactUniforms {
+    pub zone_count: u32,
+    pub _pad: [u32; 3],
+}
+
 /// ComputeCuller structure.
 pub struct ComputeCuller {
     device: Arc<wgpu::Device>,
@@ -30,6 +48,10 @@ pub struct ComputeCuller {
     frustum_bind_group_layout: wgpu::BindGroupLayout,
     hzb_downsample_bind_group_layout: wgpu::BindGroupLayout,
     hzb_culling_bind_group_layout: wgpu::BindGroupLayout,
+
+    // Default deformation buffers for standard culling
+    pub default_impact_zones_buffer: wgpu::Buffer,
+    pub default_impact_uniforms_buffer: wgpu::Buffer,
 }
 
 impl ComputeCuller {
@@ -211,6 +233,26 @@ impl ComputeCuller {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -228,6 +270,26 @@ impl ComputeCuller {
             entry_point: "main",
         });
 
+        // Initialize default zero-impact buffers for standard culling
+        let default_impact_zones_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Default Impact Zones Buffer"),
+            size: std::mem::size_of::<ImpactDeformationZone>() as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let default_impact_uniforms = ImpactUniforms {
+            zone_count: 0,
+            _pad: [0; 3],
+        };
+        let default_impact_uniforms_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Default Impact Uniforms Buffer"),
+            size: std::mem::size_of::<ImpactUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        queue.write_buffer(&default_impact_uniforms_buffer, 0, bytemuck::bytes_of(&default_impact_uniforms));
+
         Self {
             device,
             queue,
@@ -237,6 +299,8 @@ impl ComputeCuller {
             frustum_bind_group_layout,
             hzb_downsample_bind_group_layout,
             hzb_culling_bind_group_layout,
+            default_impact_zones_buffer,
+            default_impact_uniforms_buffer,
         }
     }
 
@@ -340,6 +404,36 @@ impl ComputeCuller {
         hzb_sampler: &wgpu::Sampler,
         num_instances: u32,
     ) {
+        self.dispatch_occlusion_culling_with_deformation(
+            encoder,
+            camera_uniform_buffer,
+            instances_buffer,
+            indirect_draw_buffer,
+            compact_instances_buffer,
+            hzb_texture,
+            hzb_sampler,
+            &self.default_impact_zones_buffer,
+            &self.default_impact_uniforms_buffer,
+            num_instances,
+        );
+    }
+
+    /// Dispatch hierarchical Z-buffer (HZB) occlusion culling with dynamic impact deformation zones.
+    /// Instances/clusters within active impact zones will have their bounding radii conservatively expanded
+    /// by max_displacement to prevent false-positive occlusion culling during WPO soft-body deformation.
+    pub fn dispatch_occlusion_culling_with_deformation(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        camera_uniform_buffer: &wgpu::Buffer,
+        instances_buffer: &wgpu::Buffer,
+        indirect_draw_buffer: &wgpu::Buffer,
+        compact_instances_buffer: &wgpu::Buffer,
+        hzb_texture: &wgpu::TextureView,
+        hzb_sampler: &wgpu::Sampler,
+        impact_zones_buffer: &wgpu::Buffer,
+        impact_uniforms_buffer: &wgpu::Buffer,
+        num_instances: u32,
+    ) {
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("HZB Occlusion Culling Bind Group"),
             layout: &self.hzb_culling_bind_group_layout,
@@ -368,6 +462,14 @@ impl ComputeCuller {
                     binding: 5,
                     resource: wgpu::BindingResource::Sampler(hzb_sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: impact_zones_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: impact_uniforms_buffer.as_entire_binding(),
+                },
             ],
         });
 
@@ -382,5 +484,47 @@ impl ComputeCuller {
 
         let workgroups = (num_instances + 63) / 64; // Assuming 64 threads per workgroup
         cpass.dispatch_workgroups(workgroups, 1, 1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_impact_deformation_zone_layout() {
+        assert_eq!(std::mem::size_of::<ImpactDeformationZone>(), 32);
+        assert_eq!(std::mem::align_of::<ImpactDeformationZone>(), 4);
+    }
+
+    #[test]
+    fn test_impact_uniforms_layout() {
+        assert_eq!(std::mem::size_of::<ImpactUniforms>(), 16);
+        assert_eq!(std::mem::align_of::<ImpactUniforms>(), 4);
+    }
+
+    #[test]
+    fn test_conservative_expansion_calculation() {
+        let instance_center = [10.0f32, 0.0, 0.0];
+        let original_radius = 2.0f32;
+
+        let zone = ImpactDeformationZone {
+            center: [12.0, 0.0, 0.0],
+            radius: 5.0,
+            max_displacement: 1.5,
+            _pad: [0.0; 3],
+        };
+
+        let dx = instance_center[0] - zone.center[0];
+        let dy = instance_center[1] - zone.center[1];
+        let dz = instance_center[2] - zone.center[2];
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+
+        let mut expanded_radius = original_radius;
+        if distance < (original_radius + zone.radius) {
+            expanded_radius += zone.max_displacement;
+        }
+
+        assert_eq!(expanded_radius, 3.5);
     }
 }

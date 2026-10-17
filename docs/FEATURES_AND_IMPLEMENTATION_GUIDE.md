@@ -106,7 +106,8 @@ Fluorescent is a layered game engine and high-performance runtime platform desig
 | Subsystem | Available Features | Primary Files / Modules |
 |---|---|---|
 | **Memory & Allocators** | 16MB Double-Buffered Frame Allocator, Arena Allocator, 64-Byte Cache Alignment, 0xAA/0x55 Sentinels, GC Firewall, SPSC Ring Buffers | `fluorite_core/src/allocator/`, `fluorite_core/src/fluoropod/` |
-| **ECS** | Sparse-set contiguous `Float32List` transform storage, archetypes, Movement, Combat, Trap, Telemetry systems | `fluorite_core/src/ecs/`, `packages/fluorescent_ecs/` |
+| **Fluonder (Playing Field)** | Multi-scale interactive 3D geospatial canvas (Orbit to Street level, Cesium 3D Tiles, terrain colliders, hole cutters for tunnels/caves) | `fluorite_core/src/spatial/geo/`, `fluorite_core/tests/fluonder_integration_test.rs` |
+| **ECS & Simulation** | Archetype-based Bevy ECS (`bevy_ecs`, `bevy_reflect`), bitset change detection (`Changed<T>`), sparse-set FFI sync | `fluorite_core/src/ecs/bevy_adapter.rs`, `fluorite_core/src/ecs/reflection.rs` |
 | **GPU-Driven Rendering** | Compute Frustum Culling, Hierarchical Z-Buffer (HZB) Occlusion, Nanite-Style Virtual Geometry Clusters, Unified Indirect Draws | `fluoderpod_render/src/culling/`, `fluoderpod_render/src/virtual_geometry/`, `fluoderpod_render/src/unified_pipeline/` |
 | **PBR Rendering** | Cook-Torrance GGX BRDF, Clustered Forward+ (3,456 cells, 1024+ lights), Cascaded Shadow Maps (CSM), RTGI Irradiance Probes, SSS, Volumetric Fog | `fluorite_core/src/rendering/`, `fluorite_core/src/rendering/shaders/` |
 | **Spatial Indexing** | 32-byte `FlatBvhNode`, 16-bin SAH BVH builder, SIMD slab raycasting, Box-Frustum culling (<0.2ms for 10k entities), Geo WGS84 coordinates | `fluorite_core/src/spatial/` |
@@ -144,11 +145,12 @@ frame_alloc.swap_buffers(); // Next frame O(1) reset
 
 ---
 
-### 4.2 High-Performance Sparse-Set ECS
+### 4.2 High-Performance Sparse-Set & Archetype Bevy ECS (`fluorite_core::ecs`)
 
-- **Storage Format:** Contiguous `Float32List` / typed data buffers.
-- **Transform Memory Layout:** 16 standard floats per entity (`[pos_x, pos_y, pos_z, scale_x, scale_y, scale_z, rot_x, rot_y, rot_z, rot_w, padding...]`).
-- **Archetype Querying:** Fast bitmask queries over sparse sets.
+- **Archetype Storage (`bevy_ecs`):** Spawns entities in bulk (`spawn_batch`) into cache-contiguous archetypes via `BevyEngineWorld`.
+- **Change Detection Harvesting (`Changed<T>`):** Employs Bevy ECS generation bitsets to query only entities whose components were modified during the current tick (`harvest_changed_transforms`). This avoids redundant FFI copies across the Flutter boundary.
+- **Dynamic Reflection (`bevy_reflect`):** Dynamic inspection and serialization (`ReflectSerializer`) enabling live UI slider tweaking in `fluorite_editor` without manual serialization boilerplate.
+- **Transform Memory Layout:** 16 standard floats per entity (`[pos_x, pos_y, pos_z, scale_x, scale_y, scale_z, rot_x, rot_y, rot_z, rot_w, padding...]`) with SIMD alignment.
 
 ---
 
