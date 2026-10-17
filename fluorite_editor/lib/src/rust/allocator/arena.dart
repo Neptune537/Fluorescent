@@ -29,9 +29,11 @@ abstract class ArenaAllocator implements RustOpaqueInterface, CustomAllocator {
   ///
   /// The returned pointer is guaranteed to be aligned to `layout.align()`.
   /// Returns `AllocError::OutOfMemory` if the remaining capacity cannot satisfy the request.
+  @override
   Future<MutU8> allocRaw({required Layout layout});
 
   /// Returns the number of bytes currently allocated (including alignment padding).
+  @override
   Future<BigInt> allocatedBytes();
 
   /// Returns the number of allocations performed since initialization or the last reset.
@@ -41,6 +43,7 @@ abstract class ArenaAllocator implements RustOpaqueInterface, CustomAllocator {
   Future<ConstU8> bufferBasePtr();
 
   /// Returns the total capacity of the arena in bytes.
+  @override
   Future<BigInt> capacityBytes();
 
   // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
@@ -61,6 +64,7 @@ abstract class ArenaAllocator implements RustOpaqueInterface, CustomAllocator {
   ///
   /// This instantly reclaims all memory allocated from this arena for the next frame
   /// without deallocating or reallocating the backing OS buffer.
+  @override
   Future<void> reset();
 }
 

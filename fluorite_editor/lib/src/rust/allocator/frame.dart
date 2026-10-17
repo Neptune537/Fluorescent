@@ -17,13 +17,16 @@ abstract class DoubleBufferedFrameAllocator
   /// Allocates a contiguous 1MB buffer with sentinels in the current active frame arena.
   Future<void> alloc1MbBuffer();
 
+  @override
   Future<MutU8> allocRaw({required Layout layout});
 
+  @override
   Future<BigInt> allocatedBytes();
 
   /// Returns allocation count in the active frame arena.
   Future<BigInt> allocationCount();
 
+  @override
   Future<BigInt> capacityBytes();
 
   /// Returns a reference to the active arena for the current frame.
@@ -48,6 +51,7 @@ abstract class DoubleBufferedFrameAllocator
   /// Returns remaining bytes in the active frame arena.
   Future<BigInt> remainingBytes();
 
+  @override
   Future<void> reset();
 
   /// Swaps the active ping-pong buffers:
