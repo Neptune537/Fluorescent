@@ -4,7 +4,7 @@
 //! for the `fluorite_editor` Flutter desktop inspector without manual FFI boilerplate.
 
 use bevy_reflect::serde::{ReflectDeserializer, ReflectSerializer};
-use bevy_reflect::{GetTypeRegistration, Reflect, TypeRegistryArc};
+use bevy_reflect::{GetTypeRegistration, Reflect, TypeRegistryArc, ReflectRef, ReflectMut};
 use serde::de::DeserializeSeed;
 
 pub use bevy_reflect;
@@ -57,7 +57,7 @@ impl EngineTypeRegistry {
     pub fn deserialize_from_json(
         &self,
         json_str: &str,
-    ) -> Result<Box<dyn bevy_reflect::PartialReflect>, String> {
+    ) -> Result<Box<dyn bevy_reflect::Reflect>, String> {
         let read = self.registry.read();
         let mut deserializer = serde_json::Deserializer::from_str(json_str);
         let reflect_deserializer = ReflectDeserializer::new(&read);
@@ -68,7 +68,7 @@ impl EngineTypeRegistry {
 
     /// Dynamically inspect and extract a field value as a debug string from any reflected struct.
     pub fn inspect_field(value: &dyn Reflect, field_name: &str) -> Option<String> {
-        if let Ok(reflect_struct) = value.reflect_ref().as_struct() {
+        if let bevy_reflect::ReflectRef::Struct(reflect_struct) = value.reflect_ref() {
             reflect_struct.field(field_name).map(|f| format!("{:?}", f))
         } else {
             None
@@ -79,9 +79,9 @@ impl EngineTypeRegistry {
     pub fn mutate_field(
         value: &mut dyn Reflect,
         field_name: &str,
-        new_field_value: &dyn bevy_reflect::PartialReflect,
+        new_field_value: &dyn bevy_reflect::Reflect,
     ) -> Result<(), String> {
-        if let Ok(reflect_struct) = value.reflect_mut().as_struct() {
+        if let bevy_reflect::ReflectMut::Struct(reflect_struct) = value.reflect_mut() {
             if let Some(target_field) = reflect_struct.field_mut(field_name) {
                 target_field.apply(new_field_value);
                 Ok(())
